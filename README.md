@@ -110,6 +110,7 @@ Danach:
 | `/regeln` | alle | Regeln anzeigen |
 | `/einladung` | alle | Einladungslink für den Server (führt direkt zum Captcha, läuft nie ab) |
 | `/insider` | alle | Zufälliger Insider |
+| `/ki test` | Server verwalten | Stellt der KI eine Testfrage und zeigt pro Modell, was passiert (Fehler, Dauer, Antwort) |
 | `/formular art:<…>` | alle | Einen nervigen Antrag stellen (mehrseitig, mit Bescheid und Widerspruch) |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/zeugnis [nutzer]` | alle | Fake-Zeugnis (pro Person und Tag gleich) |
@@ -157,6 +158,8 @@ Ohne KI antwortet Willy mit vorgefertigten Sprüchen. Mit KI denkt er sich die d
 - Wenn Claude eine Antwort ablehnt, versucht die API automatisch ein Ersatzmodell (Server-Side-Fallback).
 
 ### Für beide gilt
+- Willy antwortet mit KI **in Tickets** und **im normalen Chat, wenn man ihn erwähnt** (@Hausmeister Willy) oder auf seine Nachricht antwortet. Im Chat gibt es pro Person 15 Sekunden Pause zwischen zwei Fragen.
+- Klappt etwas nicht: `/ki test` zeigt genau, welches Modell welchen Fehler hatte. Pro Modell wartet Willy höchstens 15 Sekunden, dann probiert er das nächste und nimmt am Ende einen Spruch.
 - Stehen beide Keys drin, gewinnt Claude.
 - Nach `TICKET_MAX_REPLIES` Antworten (Standard 25) pro Ticket hat Willy Feierabend.
 - Keys niemals posten oder auf GitHub hochladen. Die `.env` ist in `.gitignore` und wird deshalb nicht mit hochgeladen.
@@ -188,7 +191,7 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 | `FEUERALARM_TAGE_MIN/MAX` | 2 / 7 | Abstand zwischen zufälligen Feueralarmen |
 | `AKTIV_VON` / `AKTIV_BIS` | 8 / 21 | Zufälliges nur zwischen diesen Uhrzeiten |
 | `GEMINI_MODEL` | gemini-3.8-flash | Gemini-Modell für Willy |
-| `GEMINI_FALLBACK_MODEL` | gemini-flash-lite-latest | Ersatzmodell, wenn das Hauptmodell überlastet ist |
+| `GEMINI_FALLBACK_MODEL` | gemini-flash-latest,gemini-flash-lite-latest | Ersatzmodelle (kommagetrennt), wenn das Hauptmodell überlastet ist |
 | `CLAUDE_MODEL` | claude-opus-5-5 | Claude-Modell für Willy |
 | `TICKET_MAX_REPLIES` | 25 | Max. Willy-Antworten pro Ticket |
 

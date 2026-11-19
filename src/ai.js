@@ -6,7 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ApiError, GoogleGenAI } from '@google/genai';
 import { config } from './config.js';
-import { logError } from './util.js';
+import { logError, truncate } from './util.js';
 
 let disabled = false; // nach ungültigem Key: bis zum Neustart nur noch Sprüche
 
@@ -45,7 +45,14 @@ export async function askAI(system, history) {
 // ---------------------------------------------------------------------------
 let gemini = null;
 
-async function askGemini(system, history) {
+/** Hauptmodell + Ersatzmodelle (bei Überlastung), ohne Doppelte. */
+export const geminiModels = () => [...new Set([config.gemini.model, ...config.gemini.fallbackModels].filter(Boolean))];
+
+/**
+ * Fragt Gemini. trace (optional) sammelt, was bei jedem Versuch passiert ist (für /ki test).
+ * Pro Modell: ein Versuch, max. 15 Sekunden. Danach das nächste Modell.
+ */
+async function askGemini(system, history, trace = []) {
   gemini ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   // Gemini will abwechselnde Rollen ("user"/"model") - aufeinanderfolgende zusammenfassen
@@ -57,20 +64,30 @@ async function askGemini(system, history) {
     else contents.push({ role, parts: [{ text: m.content }] });
   }
 
-  // Erst das normale Modell, bei Überlastung ein kleineres Ersatzmodell
-  const models = [...new Set([config.gemini.model, config.gemini.fallbackModel].filter(Boolean))];
+  const models = geminiModels();
   for (const [i, model] of models.entries()) {
     const next = models[i + 1];
+    const weiter = next ? `Probiere ${next}.` : 'Willy nimmt so lange Sprüche.';
+    const started = Date.now();
     try {
       const res = await gemini.models.generateContent({
         model,
         contents,
-        config: { systemInstruction: system, maxOutputTokens: 8192 },
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: 8192,
+          httpOptions: { timeout: 15_000, retryOptions: { attempts: 1 } },
+        },
       });
-      return res.text?.trim() || null; // leer = vom Sicherheitsfilter blockiert
+      const text = res.text?.trim() || null;
+      const reason = res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unbekannt';
+      trace.push({ model, ms: Date.now() - started, ok: Boolean(text), info: text ? 'Antwort erhalten' : `leere Antwort (Grund: ${reason})` });
+      if (text) return text;
+      console.warn(`[ki] Gemini (${model}) hat leer geantwortet (Grund: ${reason}). ${weiter}`);
     } catch (err) {
       const status = err instanceof ApiError ? err.status : undefined;
-      const weiter = next ? `Probiere ${next}.` : 'Willy nimmt so lange Sprüche.';
+      const ms = Date.now() - started;
+      trace.push({ model, ms, ok: false, info: `Fehler ${status ?? ''} ${truncate(String(err.message), 160)}`.trim() });
       if (status === 401 || status === 403 || (status === 400 && /api key/i.test(err.message))) {
         disable('Gemini-Key ungültig');
         return null;
@@ -79,7 +96,9 @@ async function askGemini(system, history) {
       } else if (status === 429) {
         console.warn(`[ki] Gratis-Kontingent für ${model} gerade aufgebraucht. ${weiter}`);
       } else if (status === 404) {
-        console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr). Trag ein anderes in der .env ein. ${weiter}`);
+        console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr). ${weiter}`);
+      } else if (/abort|timeout|timed out/i.test(String(err.message)) || ms >= 14_000) {
+        console.warn(`[ki] Gemini (${model}) hat nach ${Math.round(ms / 1000)} s nicht geantwortet. ${weiter}`);
       } else {
         logError('ki:gemini', err);
         return null;
@@ -87,6 +106,29 @@ async function askGemini(system, history) {
     }
   }
   return null;
+}
+
+/** Für /ki test: eine Testfrage stellen und genau berichten, was passiert. */
+export async function testAI() {
+  const provider = aiProvider();
+  const lines = [aiStatus()];
+  if (!provider) return lines;
+  if (disabled) {
+    lines.push('⛔ Die KI ist seit dem letzten Fehler abgeschaltet (z. B. ungültiger Key). Key prüfen und Bot neu starten.');
+    return lines;
+  }
+  const history = [{ role: 'user', content: 'Test: Mein Stuhl wackelt.' }];
+  const system = 'Du bist Willy, ein genervter Hausmeister. Antworte mit einem kurzen Satz auf Deutsch.';
+  if (provider === 'gemini') {
+    const trace = [];
+    const text = await askGemini(system, history, trace);
+    for (const t of trace) lines.push(`${t.ok ? '✅' : '❌'} \`${t.model}\` · ${(t.ms / 1000).toFixed(1)} s · ${t.info}`);
+    lines.push(text ? `💬 Willy sagt: „${truncate(text, 300)}“` : '🥫 Keine KI-Antwort, Willy würde jetzt einen Standardspruch nehmen.');
+    return lines;
+  }
+  const text = await askClaude(system, history);
+  lines.push(text ? `💬 Willy sagt: „${truncate(text, 300)}“` : '🥫 Keine KI-Antwort (Details im Log).');
+  return lines;
 }
 
 // ---------------------------------------------------------------------------

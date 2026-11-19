@@ -1,7 +1,7 @@
 import { ActivityType, Client, EmbedBuilder, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { config } from './config.js';
 import { COMMANDS } from './commands.js';
-import { aiStatus } from './ai.js';
+import { aiStatus, testAI } from './ai.js';
 import { guildState, save } from './storage.js';
 import { logError, pick } from './util.js';
 import { INSIDERS, INSIDER_STATUS } from './insider.js';
@@ -9,7 +9,7 @@ import { handleRules, rulesPage } from './features/rules.js';
 import { findChannel } from './features/roles.js';
 import { handleCaptcha } from './features/captcha.js';
 import { handleLottery } from './features/lottery.js';
-import { handleTicket, handleTicketMessage } from './features/tickets.js';
+import { handleMention, handleTicket, handleTicketMessage } from './features/tickets.js';
 import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moderation.js';
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
@@ -86,6 +86,12 @@ async function handleCommand(interaction) {
 
     case 'sounds':
       return handleSoundsCommand(interaction);
+
+    case 'ki': {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const lines = await testAI();
+      return interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle('🤖 KI-Test').setDescription(lines.join('\n'))] });
+    }
 
     case 'formular':
       return handleFormularCommand(interaction);
@@ -235,6 +241,7 @@ client.on(Events.MessageCreate, async (message) => {
   if (!message.guild || message.author.bot || message.system) return;
   try {
     if (await handleTicketMessage(message)) return;
+    if (await handleMention(message)) return;
     await handleModeration(message);
   } catch (err) {
     logError('message', err);

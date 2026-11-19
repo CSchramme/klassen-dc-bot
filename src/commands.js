@@ -138,6 +138,14 @@ export const COMMANDS = [
 
   guildOnly(
     new SlashCommandBuilder()
+      .setName('ki')
+      .setDescription('Willys KI prüfen')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('test').setDescription('Stellt der KI eine Testfrage und zeigt genau, was passiert')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
       .setName('formular')
       .setDescription('Einen Antrag stellen. Mehrseitig. Mit Bescheid. Viel Glück.')
       .addStringOption((o) =>

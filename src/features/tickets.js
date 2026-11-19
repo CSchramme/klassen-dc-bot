@@ -24,9 +24,13 @@ import { INSIDERS, insiderNames, insiderPromptLines } from '../insider.js';
 const NO_PINGS = { parse: [] };
 const busyChannels = new Set();
 
-function systemPrompt() {
+function systemPrompt(kontext = 'ticket') {
   const insiders = insiderNames();
-  return `Du bist "Willy", der unmotivierteste Support-Mitarbeiter der Welt, und bearbeitest Tickets auf dem Discord-Server einer Schulklasse. Die Leute, die dir schreiben, sind Schülerinnen und Schüler.
+  const rolle =
+    kontext === 'chat'
+      ? 'Du bist "Willy", der unmotivierte Hausmeister des Discord-Servers einer Schulklasse. Jemand hat dich gerade im normalen Chat angesprochen (kein Ticket). Antworte genervt, kurz und albern, gern mit dem Hinweis, dass man für so etwas eigentlich ein Ticket oder Formular braucht.'
+      : 'Du bist "Willy", der unmotivierteste Support-Mitarbeiter der Welt, und bearbeitest Tickets auf dem Discord-Server einer Schulklasse.';
+  return `${rolle} Die Leute, die dir schreiben, sind Schülerinnen und Schüler.
 
 So antwortest du:
 - Kurz: 1 bis 3 Sätze. Deutsch, locker, wie ein genervter Hausmeister kurz vor Feierabend. Keine Überschriften, keine Listen.
@@ -72,6 +76,63 @@ const SERIOUS_REPLY =
   'Wenn du in Gefahr bist, ruf die 112 an. Die Nummer gegen Kummer (116 111) ist kostenlos und anonym.';
 
 const SERIOUS_WORDS = /(mobb|belästig|bedroh|erpress|schlägt mich|geschlagen|verprügel|ritz|umbring|suizid|selbstmord|nicht mehr leben|will sterben|missbrauch|nacktbild|nacktfoto)/i;
+
+const SERIOUS_CHAT_REPLY =
+  'Hey, das klingt ernst – da hört der Spaß auf. Bitte schreib direkt einem Admin oder mach ein Ticket, dann kümmert sich ein Mensch darum. ' +
+  'Und sprich mit jemandem, dem du vertraust: Eltern, eine Lehrkraft, die Vertrauenslehrkraft oder die Schulsozialarbeit. ' +
+  'Wenn du in Gefahr bist, ruf die 112 an. Die Nummer gegen Kummer (116 111) ist kostenlos und anonym.';
+
+const mentionCooldown = new Map(); // userId -> Zeitstempel
+const busyMentions = new Set(); // channelIds
+
+/**
+ * Willy antwortet im normalen Chat, wenn man ihn erwähnt oder auf seine Nachricht antwortet.
+ * Gibt true zurück, wenn die Nachricht für Willy war.
+ */
+export async function handleMention(message) {
+  const me = message.client.user.id;
+  const botRole = message.guild.members.me?.roles.botRole?.id;
+  const forWilly =
+    message.mentions.users.has(me) || message.mentions.repliedUser?.id === me || (botRole && message.mentions.roles.has(botRole));
+  if (!forWilly) return false;
+
+  const last = mentionCooldown.get(message.author.id) ?? 0;
+  if (Date.now() - last < 15_000 || busyMentions.has(message.channel.id)) {
+    message.react('⏳').catch(() => {});
+    return true;
+  }
+  mentionCooldown.set(message.author.id, Date.now());
+
+  const text = message.content.replace(/<@[!&]?\d+>/g, '').trim();
+  const reply = (content) => message.reply({ content: truncate(content, 1900), allowedMentions: { repliedUser: false, parse: [] } });
+
+  // Ernste Themen gehen nicht an die KI
+  if (SERIOUS_WORDS.test(text)) {
+    await reply(SERIOUS_CHAT_REPLY);
+    return true;
+  }
+
+  busyMentions.add(message.channel.id);
+  try {
+    await message.channel.sendTyping().catch(() => {});
+    const name = message.member?.displayName ?? message.author.username;
+    const history = [];
+    // Antwort auf eine frühere Willy-Nachricht? Dann die als Zusammenhang mitgeben.
+    if (message.reference?.messageId) {
+      const ref = await message.fetchReference().catch(() => null);
+      if (ref?.author.id === me && ref.content) {
+        history.push({ role: 'user', content: '(Jemand hat dich vorher etwas gefragt.)' }, { role: 'assistant', content: truncate(ref.content, 1000) });
+      }
+    }
+    history.push({ role: 'user', content: `${name}: ${truncate(text || '(hat nur deinen Namen geschrieben)', 1500)}` });
+    let answer = await askAI(systemPrompt('chat'), history);
+    if (answer?.startsWith('[ERNST]')) answer = SERIOUS_CHAT_REPLY;
+    await reply(answer || cannedReply());
+  } finally {
+    busyMentions.delete(message.channel.id);
+  }
+  return true;
+}
 
 async function buildHistory(channel, ticket) {
   const fetched = await channel.messages.fetch({ limit: 40 });
