@@ -201,10 +201,16 @@ export const COMMANDS = [
   guildOnly(
     new SlashCommandBuilder()
       .setName('namensroulette')
-      .setDescription('Jeden Tag ein dummer Spitzname für eine Person (nur wer mitmacht)')
+      .setDescription('Jeden Tag ein dummer Spitzname für eine zufällige Person')
       .addSubcommand((s) => s.setName('mitmachen').setDescription('Ich mach mit!'))
       .addSubcommand((s) => s.setName('aussteigen').setDescription('Ich will meinen Namen zurück'))
-      .addSubcommand((s) => s.setName('liste').setDescription('Wer macht mit?'))
-      .addSubcommand((s) => s.setName('drehen').setDescription('Sofort drehen (nur mit „Server verwalten“)')),
+      .addSubcommand((s) => s.setName('liste').setDescription('Wer ist im Topf?'))
+      .addSubcommand((s) => s.setName('drehen').setDescription('Sofort drehen (nur mit „Server verwalten“)'))
+      .addSubcommand((s) =>
+        s
+          .setName('fuer-alle')
+          .setDescription('Alle aktiven Leute machen automatisch mit (nur mit „Server verwalten“)')
+          .addBooleanOption((o) => o.setName('aktiv').setDescription('An oder aus').setRequired(true)),
+      ),
   ),
 ].map((c) => c.toJSON());

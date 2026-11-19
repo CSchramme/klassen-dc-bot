@@ -14,7 +14,7 @@ import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moder
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
-import { SPASS_COMMANDS, handleSpassCommand, initEvents } from './features/events.js';
+import { SPASS_COMMANDS, handleSpassCommand, initEvents, merkeAktiv } from './features/events.js';
 import { handleSoundsCommand } from './features/sounds.js';
 import { handleFormular, handleFormularCommand } from './features/formulare.js';
 
@@ -73,6 +73,11 @@ client.once(Events.ClientReady, async () => {
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommands(guild));
+
+// Wer in einen Sprachkanal geht, zählt auch als aktiv (fürs Namens-Roulette)
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+  if (newState.channelId && !oldState.channelId && newState.member && !newState.member.user.bot) merkeAktiv(newState.guild.id, newState.id);
+});
 
 // ---------------------------------------------------------------------------
 // Slash-Befehle
@@ -245,6 +250,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.on(Events.MessageCreate, async (message) => {
   if (!message.guild || message.author.bot || message.system) return;
   try {
+    merkeAktiv(message.guild.id, message.author.id);
     if (await handleTicketMessage(message)) return;
     if (await handleMention(message)) return;
     await handleModeration(message);

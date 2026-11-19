@@ -29,6 +29,9 @@ function spassState(guildId) {
   for (const k of Object.keys(AUTOMATIK)) g.automatik[k] ??= true;
   g.zeitplan ??= {};
   g.namensroulette ??= { teilnehmer: [], aktiv: null };
+  g.namensroulette.fuerAlle ??= false; // true = alle Aktiven machen mit (außer wer aussteigt)
+  g.namensroulette.ausgestiegen ??= [];
+  g.namensroulette.gesehen ??= {}; // userId -> zuletzt aktiv (Nachricht oder Sprachkanal)
   return g;
 }
 
@@ -217,16 +220,39 @@ async function rouletteAblauf(guild, g) {
   await namenZuruecksetzen(guild, aktiv);
 }
 
+const AKTIV_FENSTER = 14 * DAY;
+
+/** Merkt sich, wer aktiv ist (Nachricht geschrieben / Sprachkanal betreten). Höchstens 1x pro Stunde speichern. */
+export function merkeAktiv(guildId, userId) {
+  const gesehen = spassState(guildId).namensroulette.gesehen;
+  if (Date.now() - (gesehen[userId] ?? 0) < HOUR) return;
+  gesehen[userId] = Date.now();
+  // Alte Einträge aufräumen
+  for (const [id, t] of Object.entries(gesehen)) if (Date.now() - t > AKTIV_FENSTER) delete gesehen[id];
+  save();
+}
+
+/** Wer kommt heute in Frage? Freiwillige, und bei "für alle" zusätzlich alle Aktiven der letzten 14 Tage. */
+function kandidaten(nr) {
+  const pool = new Set(nr.teilnehmer);
+  if (nr.fuerAlle) {
+    for (const [id, t] of Object.entries(nr.gesehen)) if (Date.now() - t < AKTIV_FENSTER) pool.add(id);
+  }
+  for (const id of nr.ausgestiegen) pool.delete(id);
+  return [...pool];
+}
+
 export async function namensrouletteDrehen(guild) {
   const nr = spassState(guild.id).namensroulette;
   if (nr.aktiv) {
     await namenZuruecksetzen(guild, nr.aktiv);
     nr.aktiv = null;
   }
-  for (const id of shuffle(nr.teilnehmer)) {
+  for (const id of shuffle(kandidaten(nr))) {
     const m = await guild.members.fetch(id).catch(() => null);
-    if (!m) {
+    if (!m || m.user.bot) {
       nr.teilnehmer = nr.teilnehmer.filter((x) => x !== id); // nicht mehr auf dem Server
+      delete nr.gesehen[id];
       continue;
     }
     const name = spitzname();
@@ -287,7 +313,7 @@ export async function tickGuild(guild, nowDate = new Date()) {
   if (a.namensroulette && t.minutes >= nr && t.minutes < nr + 60 && z.namensroulette !== t.date) {
     z.namensroulette = t.date;
     save();
-    if (g.namensroulette.teilnehmer.length) await namensrouletteDrehen(guild);
+    if (kandidaten(g.namensroulette).length) await namensrouletteDrehen(guild);
   }
 
   // Zufällige Sachen, nur tagsüber
@@ -393,6 +419,7 @@ export async function handleSpassCommand(interaction) {
       const id = interaction.user.id;
 
       if (sub === 'mitmachen') {
+        nr.ausgestiegen = nr.ausgestiegen.filter((x) => x !== id);
         if (nr.teilnehmer.includes(id)) return interaction.reply({ content: 'Du machst schon mit. Mutig.', ...ephemeral });
         nr.teilnehmer.push(id);
         save();
@@ -408,6 +435,7 @@ export async function handleSpassCommand(interaction) {
 
       if (sub === 'aussteigen') {
         nr.teilnehmer = nr.teilnehmer.filter((x) => x !== id);
+        if (!nr.ausgestiegen.includes(id)) nr.ausgestiegen.push(id); // gilt auch, wenn "für alle" an ist
         if (nr.aktiv?.userId === id) {
           await namenZuruecksetzen(guild, nr.aktiv);
           nr.aktiv = null;
@@ -417,9 +445,38 @@ export async function handleSpassCommand(interaction) {
       }
 
       if (sub === 'liste') {
-        const list = nr.teilnehmer.map((x) => `• <@${x}>`).join('\n') || '_Noch niemand. Feiglinge._';
+        const pool = kandidaten(nr);
+        const list = pool.slice(0, 40).map((x) => `• <@${x}>`).join('\n') || '_Noch niemand. Feiglinge._';
+        const modus = nr.fuerAlle
+          ? '🌍 **Modus: für alle** (jede Person, die in den letzten 14 Tagen aktiv war)'
+          : '🙋 **Modus: freiwillig** (nur wer `/namensroulette mitmachen` gemacht hat)';
+        const raus = nr.ausgestiegen.length ? `\n🚪 Ausgestiegen: ${nr.ausgestiegen.length}` : '';
         const aktiv = nr.aktiv ? `\n\nAktuell: <@${nr.aktiv.userId}> heißt **${nr.aktiv.name}** (bis <t:${Math.floor(nr.aktiv.bis / 1000)}:t>)` : '';
-        return interaction.reply({ content: `🎡 **Namens-Roulette – Teilnehmende (${nr.teilnehmer.length}):**\n${list}${aktiv}`, allowedMentions: NO_PINGS });
+        return interaction.reply({ content: `🎡 **Namens-Roulette**\n${modus}${raus}\n\n**Im Topf (${pool.length}):**\n${list}${aktiv}`, allowedMentions: NO_PINGS });
+      }
+
+      if (sub === 'fuer-alle') {
+        if (!interaction.memberPermissions?.has(P.ManageGuild)) {
+          return interaction.reply({ content: 'Das dürfen nur Leute mit „Server verwalten“.', ...ephemeral });
+        }
+        nr.fuerAlle = interaction.options.getBoolean('aktiv', true);
+        save();
+        if (nr.fuerAlle) {
+          await mainChat(guild)
+            ?.send({
+              content:
+                '🎡 **Achtung:** Beim Namens-Roulette machen ab sofort **ALLE** mit! Jeden Morgen bekommt eine zufällige Person für 24 Stunden einen dummen Spitznamen.\n' +
+                'Wer nicht will: `/namensroulette aussteigen`.',
+              allowedMentions: NO_PINGS,
+            })
+            .catch(() => {});
+        }
+        return interaction.reply({
+          content: nr.fuerAlle
+            ? '🌍 Namens-Roulette ist jetzt **für alle**. Im Topf landet jede Person, die in den letzten 14 Tagen geschrieben hat oder im Sprachkanal war (außer wer aussteigt). Ich habe es im Chat angekündigt.'
+            : '🙋 Namens-Roulette ist wieder **freiwillig**: nur noch wer `/namensroulette mitmachen` gemacht hat.',
+          ...ephemeral,
+        });
       }
 
       // drehen
@@ -428,7 +485,7 @@ export async function handleSpassCommand(interaction) {
       }
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const result = await namensrouletteDrehen(guild);
-      return interaction.editReply(result ? `🎡 Gedreht: ${result}` : 'Niemand, dessen Namen ich ändern darf, macht mit.');
+      return interaction.editReply(result ? `🎡 Gedreht: ${result}` : 'Niemand im Topf. Mach `/namensroulette fuer-alle aktiv:True` oder lass Leute `/namensroulette mitmachen`.');
     }
 
     default:
