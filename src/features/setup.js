@@ -63,7 +63,7 @@ export function overwrites(guild, ids, sicht, nurLesen) {
 async function ensureRole(guild, def, extra = {}) {
   const existing = guild.roles.cache.find((r) => r.name === def.name);
   if (existing) return existing;
-  return guild.roles.create({ name: def.name, color: def.color, permissions: [], reason: 'Dummes Setup', ...extra });
+  return guild.roles.create({ name: def.name, colors: { primaryColor: def.color }, permissions: [], reason: 'Dummes Setup', ...extra });
 }
 
 async function wipeChannels(guild, keepChannelId) {

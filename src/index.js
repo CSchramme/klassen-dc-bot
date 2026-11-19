@@ -171,6 +171,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand()) await handleCommand(interaction);
     else if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) await handleComponent(interaction);
   } catch (err) {
+    // 10062 = Antwort kam zu spät (Discord gibt nur 3 Sekunden), 40060 = schon beantwortet
+    if (err?.code === 10062 || err?.code === 40060) {
+      const age = Date.now() - interaction.createdTimestamp;
+      const what = interaction.customId ?? `/${interaction.commandName}`;
+      console.warn(
+        `⏱️ Discord-Interaktion "${what}" ${err.code === 10062 ? 'abgelaufen' : 'doppelt beantwortet'} ` +
+          `(Bot hat nach ${age} ms geantwortet, erlaubt sind 3000 ms).` +
+          (err.code === 40060 ? ' Läuft der Bot vielleicht zweimal (z. B. zusätzlich auf deinem PC)?' : ''),
+      );
+      return;
+    }
     logError('interaction', err);
     const msg = { content: '💥 Da ist was schiefgelaufen. Willy ist informiert. Willy ist es egal.', flags: MessageFlags.Ephemeral };
     if (interaction.isRepliable()) {
