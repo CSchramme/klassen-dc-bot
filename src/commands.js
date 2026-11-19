@@ -103,6 +103,8 @@ export const COMMANDS = [
 
   guildOnly(new SlashCommandBuilder().setName('insider').setDescription('Ein zufälliger Insider')),
 
+  guildOnly(new SlashCommandBuilder().setName('einladung').setDescription('Einladungslink für den Server (führt direkt zum Captcha)')),
+
   guildOnly(
     new SlashCommandBuilder()
       .setName('ram')

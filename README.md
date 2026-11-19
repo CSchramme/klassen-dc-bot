@@ -94,6 +94,7 @@ Danach:
 | `/moderation an / aus` | Server verwalten | Quatsch-Moderation |
 | `/strafregister [nutzer]` | alle | Zeigt die Akte |
 | `/regeln` | alle | Regeln anzeigen |
+| `/einladung` | alle | Einladungslink für den Server (führt direkt zum Captcha, läuft nie ab) |
 | `/insider` | alle | Zufälliger Insider |
 | `/ram [nutzer]` | alle | Wie viel RAM hat RAM Altman dir schon geklaut? (mit Bestenliste) |
 

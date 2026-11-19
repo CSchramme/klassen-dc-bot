@@ -6,6 +6,7 @@ import { guildState, save } from './storage.js';
 import { logError, pick } from './util.js';
 import { INSIDERS, INSIDER_STATUS } from './insider.js';
 import { handleRules, rulesPage } from './features/rules.js';
+import { findChannel } from './features/roles.js';
 import { handleCaptcha } from './features/captcha.js';
 import { handleLottery } from './features/lottery.js';
 import { handleTicket, handleTicketMessage } from './features/tickets.js';
@@ -128,6 +129,25 @@ async function handleCommand(interaction) {
 
     case 'regeln':
       return interaction.reply({ ...rulesPage(0), components: [], ...ephemeral, content: 'Seite 1. Die anderen Seiten gibt es beim Captcha. Oder in #wer-hat-meine-socke-gesehen.' });
+
+    case 'einladung': {
+      const guild = interaction.guild;
+      const channel = findChannel(guild, 'start') ?? guild.systemChannel ?? guild.channels.cache.find((c) => c.isTextBased?.() && !c.isThread?.());
+      if (!channel) return interaction.reply({ content: 'Ich finde keinen Kanal für die Einladung. Erst `/setup` ausführen.', ...ephemeral });
+      try {
+        // Läuft nie ab, unbegrenzt oft benutzbar; vorhandener Link wird wiederverwendet
+        const invite = await channel.createInvite({ maxAge: 0, maxUses: 0, unique: false, reason: `/einladung von ${interaction.user.username}` });
+        return interaction.reply({
+          content:
+            `📨 **Einladungslink:** ${invite.url}
+` +
+            'Läuft nie ab. Neue Leute landen direkt im Hintereingang und dürfen erstmal ein Captcha lösen. 🚦',
+        });
+      } catch (err) {
+        logError('einladung', err);
+        return interaction.reply({ content: `Konnte keinen Link erstellen (${err.message}).`, ...ephemeral });
+      }
+    }
 
     case 'insider': {
       if (INSIDERS.length === 0) return interaction.reply({ content: 'Keine Insider eingetragen. Traurig.', ...ephemeral });
