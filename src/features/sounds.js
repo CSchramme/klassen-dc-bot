@@ -100,11 +100,9 @@ export async function handleSoundsCommand(interaction) {
     }
   }
 
-  // liste
+  // liste (erst "denkt nach…", weil das Abrufen dauern kann)
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const sounds = await guild.soundboardSounds.fetch();
   const list = sounds.map((s) => `${s.emoji ?? '🔈'} ${s.name}`).join('\n') || '_Keine eigenen Sounds. Mach `/sounds hochladen`._';
-  return interaction.reply({
-    content: `🎵 **Soundboard dieses Servers (${sounds.size}/${LIMITS[guild.premiumTier] ?? 8}):**\n${list}`,
-    flags: MessageFlags.Ephemeral,
-  });
+  return interaction.editReply(`🎵 **Soundboard dieses Servers (${sounds.size}/${LIMITS[guild.premiumTier] ?? 8}):**\n${list}`);
 }

@@ -1,3 +1,4 @@
+import { diagnose, keepWarm, restAgent } from './net.js';
 import { ActivityType, Client, EmbedBuilder, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { config } from './config.js';
 import { COMMANDS } from './commands.js';
@@ -30,6 +31,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent, // privilegiert: im Developer Portal einschalten!
   ],
+  rest: { agent: restAgent },
 });
 
 const STATUS = [
@@ -59,6 +61,8 @@ client.once(Events.ClientReady, async () => {
   console.log(`✅ Eingeloggt als ${client.user.tag}`);
   console.log(`🔗 Einladungslink: https://discord.com/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`);
   console.log(aiStatus());
+  keepWarm(client);
+  diagnose();
   if (aiProvider() === 'gemini') {
     discoverGeminiModels().then((list) => {
       if (list.length) console.log(`📋 Gemini-Modelle für deinen Key: ${list.slice(0, 6).join(', ')}`);
@@ -221,6 +225,7 @@ async function handleComponent(interaction) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.inGuild()) return;
+  const receivedAfter = Date.now() - interaction.createdTimestamp; // wie spät kam der Klick bei Willy an?
   try {
     if (interaction.isChatInputCommand()) await handleCommand(interaction);
     else if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) await handleComponent(interaction);
@@ -231,7 +236,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const what = interaction.customId ?? `/${interaction.commandName}`;
       console.warn(
         `⏱️ Discord-Interaktion "${what}" ${err.code === 10062 ? 'abgelaufen' : 'doppelt beantwortet'} ` +
-          `(Bot hat nach ${age} ms geantwortet, erlaubt sind 3000 ms).` +
+          `(angekommen bei Willy nach ${receivedAfter} ms, Antwort nach ${age} ms, erlaubt sind 3000 ms).` +
           (err.code === 40060 ? ' Läuft der Bot vielleicht zweimal (z. B. zusätzlich auf deinem PC)?' : ''),
       );
       return;
