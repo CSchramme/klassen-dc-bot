@@ -13,6 +13,7 @@ import { allRulesMessage, startMessage } from './rules.js';
 import { lotteryMessage } from './lottery.js';
 import { ticketPanelMessage } from './tickets.js';
 import { setDumbIcon } from './server.js';
+import { uploadSounds } from './sounds.js';
 import { guildState, save } from '../storage.js';
 import { logError } from '../util.js';
 
@@ -290,6 +291,12 @@ async function runSetup(guild, { wipe, name }) {
   });
   await tryStep('👋 Willkommensnachrichten landen in #nicht-allgemein', () => guild.setSystemChannel(byKey.system));
   await tryStep(`🏷️ Bot-Spitzname: ${BOT_NICKNAME}`, () => guild.members.me.setNickname(BOT_NICKNAME));
+  try {
+    log.push(...(await uploadSounds(guild)));
+  } catch (err) {
+    logError('setup:sounds', err);
+    log.push(`⚠️ Sounds konnten nicht hochgeladen werden (${err.message})`);
+  }
 
   g.setupDone = true;
   save();

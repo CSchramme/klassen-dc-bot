@@ -114,7 +114,7 @@ export async function feueralarm(guild) {
 
   for (const room of rooms.values()) room.send({ content: FEUERALARM_TEXT, allowedMentions: NO_PINGS }).catch(() => {});
   const loudest = [...rooms.values()].sort((a, b) => humans(b) - humans(a))[0];
-  await raid(loudest, { filter: /alarm|sirene|siren|airhorn|horn|alert/i, count: 2, quick: true }).catch((err) => logError('feueralarm:sirene', err));
+  await raid(loudest, { filter: /feueralarm|alarm|sirene|siren/i, count: 1, quick: true }).catch((err) => logError('feueralarm:sirene', err));
 
   if (!hof) return '🚨 Sirene gespielt. Es gibt aber keinen Pausenhof-Sprachkanal, deshalb wurde niemand evakuiert.';
 

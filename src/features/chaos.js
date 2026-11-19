@@ -96,7 +96,7 @@ export async function raid(channel, opts = {}) {
       const matching = sounds.filter((s) => opts.filter.test(s.name));
       if (matching.length) sounds = matching;
     }
-    if (sounds.length === 0) return 'Keine Soundboard-Sounds gefunden. Ladet welche in den Servereinstellungen hoch!';
+    if (sounds.length === 0) return 'Keine Soundboard-Sounds auf dem Server. Mach `/sounds hochladen`, dann hab ich was zum Abspielen!';
 
     connection = joinVoiceChannel({
       channelId: channel.id,

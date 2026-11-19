@@ -27,7 +27,8 @@ export const config = {
     joinChance: num(process.env.CHAOS_JOIN_CHANCE, 0.25),
     minSounds: num(process.env.CHAOS_MIN_SOUNDS, 1),
     maxSounds: num(process.env.CHAOS_MAX_SOUNDS, 4),
-    useDefaultSounds: process.env.CHAOS_DEFAULT_SOUNDS !== 'false',
+    // Discord-Standardsounds nur, wenn ausdrücklich gewünscht (sonst nur die eigenen Sounds des Servers)
+    useDefaultSounds: process.env.CHAOS_DEFAULT_SOUNDS === 'true',
   },
 
   spass: {

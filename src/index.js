@@ -15,6 +15,7 @@ import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents } from './features/events.js';
+import { handleSoundsCommand } from './features/sounds.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_TOKEN fehlt. Kopiere .env.example nach .env und trag den Token ein.');
@@ -82,6 +83,9 @@ async function handleCommand(interaction) {
     case 'co-owner':
       return handleCoOwnerCommand(interaction);
 
+    case 'sounds':
+      return handleSoundsCommand(interaction);
+
     case 'server':
       return handleServerCommand(interaction);
 
@@ -97,7 +101,7 @@ async function handleCommand(interaction) {
       }
       if (sub === 'status') {
         const sounds = await getSounds(interaction.guild);
-        const list = sounds.slice(0, 20).map((s) => `• ${s.name}`).join('\n') || '_keine_';
+        const list = sounds.slice(0, 20).map((s) => `• ${s.name}`).join('\n') || '_keine – mach `/sounds hochladen`_';
         return interaction.reply({
           content: `Chaos: **${g.chaos ? 'an 😈' : 'aus 😇'}**\nSounds (${sounds.length}):\n${list}`,
           ...ephemeral,

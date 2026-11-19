@@ -120,6 +120,15 @@ export const COMMANDS = [
       .addUserOption((o) => o.setName('nutzer').setDescription('Wessen RAM-Konto?')),
   ),
 
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('sounds')
+      .setDescription('Willys eigene Soundboard-Sounds')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('hochladen').setDescription('Willys Sounds (Feueralarm, Schulgong …) ins Soundboard laden'))
+      .addSubcommand((s) => s.setName('liste').setDescription('Welche Sounds hat der Server?')),
+  ),
+
   guildOnly(new SlashCommandBuilder().setName('vertretungsplan').setDescription('Der heutige Vertretungsplan (ohne Gewähr)')),
 
   guildOnly(

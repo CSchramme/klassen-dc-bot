@@ -23,6 +23,8 @@ const { overwrites } = await import('../src/features/setup.js');
 const { randomServerName, randomIconFile } = await import('../src/features/server.js');
 const { guildState } = await import('../src/storage.js');
 const fun = await import('../src/features/fun.js');
+const { SOUNDS, uploadSounds } = await import('../src/features/sounds.js');
+const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
 
 let ok = 0;
@@ -263,6 +265,31 @@ async function simulateModeration() {
   serialize({ embeds: [ramEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
 }
 
+// ---------------------------------------------------------------- Sounds
+check('Sound-Dateien', () => {
+  for (const snd of SOUNDS) {
+    const size = fsMod.statSync(`assets/sounds/${snd.file}`).size;
+    assert.ok(size > 1000 && size <= 512 * 1024, `${snd.file}: ${size} Bytes`);
+    assert.ok(snd.name.length >= 2 && snd.name.length <= 32, snd.name);
+    assert.ok(snd.volume > 0 && snd.volume <= 1);
+  }
+});
+
+async function simulateSoundUpload() {
+  const created = [];
+  const existing = new Collection(['a', 'b', 'c', 'd', 'Schulgong'].map((n, i) => [`s${i}`, { name: n }]));
+  const guild = {
+    premiumTier: 0, // 8 Plätze, 5 belegt (einer davon ist schon "Schulgong")
+    soundboardSounds: { fetch: async () => existing, create: async (o) => created.push(o) },
+  };
+  const lines = await uploadSounds(guild);
+  assert.equal(created.length, 3, 'Es hätten genau 3 Sounds hochgeladen werden müssen');
+  assert.equal(created[0].name, 'Feueralarm', 'Feueralarm muss zuerst kommen');
+  assert.ok(created.every((o) => o.contentType === 'audio/mpeg' && o.file.length > 1000));
+  assert.ok(lines.some((l) => l.includes('Schon da') && l.includes('Schulgong')));
+  assert.ok(lines.some((l) => l.includes('Kein Platz')));
+}
+
 // ---------------------------------------------------------------- Ticket-Knöpfe und Formular
 async function simulateTicketButtons() {
   const guildId = 'g-ticket';
@@ -286,6 +313,7 @@ async function simulateTicketButtons() {
 }
 
 for (const [name, fn] of [
+  ['Sound-Upload', simulateSoundUpload],
   ['Ticket-Knöpfe', simulateTicketButtons],
   ['Captcha-Simulation', simulateCaptcha],
   ['Moderation', simulateModeration],

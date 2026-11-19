@@ -7,7 +7,8 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🏗️ **Chaos-Serveraufbau** | `/setup` baut 17 Kategorien mit über 50 Kanälen. Die Sprachkanäle heißen „Textkanäle“, „GANZ OBEN“ ist ganz unten, es gibt `#allgemein`, `#allgemein-2`, `#allgemein-final` und `#𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3`, und der „Schnell-Chat“ hat 6 Stunden Slowmode. |
 | 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. |
 | 📜 **Regeln + sinnloses Captcha** | Neue Leute sehen nur den „Hintereingang“. Sie müssen 6 Regelseiten durchblättern und dann ein 8-stufiges Captcha lösen: Roboter-Frage, Ampel-Raster, Quatsch-Mathe, Rückwärts-Schreiben, Lieblings-Primzahl, Ladebalken mit 99 %, Bestätigung der Bestätigung und ein zufälliges „Captcha fehlgeschlagen (Mondphase)“ mit Einspruch. |
-| 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers**. |
+| 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers** (keine Discord-Standardsounds). |
+| 🎵 **Willys eigene Sounds** | 8 selbst erzeugte Sounds (Feueralarm-Sirene, Schulgong, Trommelwirbel, Ladebalken-„Wah wah“, RAM geklaut, Captcha falsch, Willys Besen, Pausenklingel). Willy lädt sie bei `/setup` oder mit `/sounds hochladen` selbst ins Soundboard. |
 | 🎫 **Willy-Ticketsystem** | Tickets beantwortet „Willy“ (über eine KI, kostenlos mit Gemini), maximal unmotiviert: „Und deswegen machst du ein Ticket?“ Bei ernsten Themen hört der Spaß auf (siehe unten). |
 | 👮 **Quatsch-Moderation** | Gänse sind verboten (Nachricht weg, 30 s Timeout). Wer „Erster“ schreibt, wird Zweiter. Enten in `#nicht-enten` werden umgesiedelt, Buchstaben in `#mathe-nur-mit-zahlen` gelöscht. Dazu Routinekontrollen, ein Strafregister und eine `#🚨-polizeiwache`. |
 | 📜 **Team-Kodex** | Todernste Richtlinie (Aktenzeichen OA-27b/6) darüber, wie dumm das Team schreiben muss. Der Bot ermahnt Teammitglieder, die einen Punkt ans Satzende setzen. |
@@ -74,7 +75,7 @@ Auf dem Discord-Server:
 - **Bestehender Server:** `/setup`. Das baut alles zusätzlich auf. Achtung: Deine alten Kanäle bleiben dann für alle sichtbar, auch ohne Captcha.
 
 Danach:
-- **Soundboard-Sounds hochladen:** Servereinstellungen → Soundboard. Ohne eigene Sounds nimmt der Bot die Discord-Standardsounds.
+- **Sounds:** `/setup` lädt Willys 8 Sounds automatisch ins Soundboard (ein Server ohne Boost hat 8 Plätze). Auf einem schon eingerichteten Server: `/sounds hochladen`. Eigene Sounds könnt ihr zusätzlich in den Servereinstellungen unter Soundboard hochladen.
 - **Rollen-Reihenfolge:** Die Bot-Rolle **Hausmeister Willy** muss in den Servereinstellungen unter **Rollen** ganz oben stehen, sonst darf der Bot die anderen Rollen nicht verwalten. Das legt Discord so fest. `/setup nur_rollen:True` sortiert danach den Rest (Owner > Co-Owner > Bots > Team > Verifiziert) und zeigt die aktuelle Reihenfolge an.
 - Du (der Serverbesitzer) bekommst automatisch die Rolle **👑 Owner (Chef vom Ganzen)**. Co-Owner ernennst du mit `/co-owner @name`. Beide Rollen haben Admin-Rechte, also nur an Leute geben, denen du vertraust.
 - Moderator:innen die Rolle **🛡️ Ordnungsamt (Team)** geben. Dann sehen sie den Team-Bereich mit dem Kodex.
@@ -99,6 +100,7 @@ Danach:
 | `/bot name <name>` | Admin | Benutzername des Bots (max. 2× pro Stunde) |
 | `/chaos an / aus / status` | Server verwalten | Soundboard-Überfälle an/aus, Sounds anzeigen |
 | `/chaos jetzt [kanal]` | Server verwalten | Sofortiger Überfall auf den gewählten Sprachkanal (ohne Angabe: deinen) |
+| `/sounds hochladen / liste` | Server verwalten | Willys Sounds ins Soundboard laden bzw. alle Server-Sounds anzeigen |
 | `/feueralarm` | Server verwalten | 🚨 Alle aus den Sprachkanälen auf den Pausenhof, nach 45 s zurück |
 | `/automatik status / setzen` | Server verwalten | Automatischen Unsinn an-/ausschalten (Vertretungsplan, Durchsagen, 13:37, Putzen, Feueralarm, Namens-Roulette) |
 | `/moderation an / aus` | Server verwalten | Quatsch-Moderation |
@@ -174,7 +176,7 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 | `CHAOS_MIN_MINUTES` / `CHAOS_MAX_MINUTES` | 10 / 45 | Abstand zwischen zufälligen Überfällen |
 | `CHAOS_JOIN_CHANCE` | 0.25 | Chance, dass der Bot direkt hinterherkommt, wenn jemand einem Sprachkanal beitritt |
 | `CHAOS_MIN_SOUNDS` / `CHAOS_MAX_SOUNDS` | 1 / 4 | Sounds pro Besuch |
-| `CHAOS_DEFAULT_SOUNDS` | true | Discord-Standardsounds nehmen, wenn der Server keine eigenen hat |
+| `CHAOS_DEFAULT_SOUNDS` | false | Discord-Standardsounds (Quack, Airhorn …) mitbenutzen |
 | `MOD_TIMEOUT_SECONDS` | 30 | Timeout für Gans-Erwähnungen (0 = keiner) |
 | `ZEITZONE` | Europe/Berlin | Zeitzone für alle Uhrzeiten |
 | `VERTRETUNGSPLAN_UHRZEIT` / `NAMENSROULETTE_UHRZEIT` | 07:15 / 07:00 | Feste Uhrzeiten |
@@ -193,5 +195,6 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 
 - `npm run check`: Selbsttest ohne Discord. Prüft Layout und Nachrichten-Limits und spielt das Captcha und die Moderation einmal durch.
 - `npm run icons`: Icons neu generieren (braucht Python + Pillow).
+- `python3 scripts/make-sounds.py`: Sounds neu erzeugen (braucht numpy + ffmpeg).
 - Kanäle, Rollen, Regeln und Team-Kodex stehen alle in `src/features/layout.js`.
 - Gespeichert wird in `data/state.json` (Einstellungen, Strafregister, offene Tickets).
