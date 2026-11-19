@@ -7,6 +7,7 @@ import { localNow, logError, parseTime, randInt, shuffle } from '../util.js';
 import { LAYOUT } from './layout.js';
 import { findChannel } from './roles.js';
 import { humans, raid } from './chaos.js';
+import { strafeEintragen } from './moderation.js';
 import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisEmbed } from './fun.js';
 
 const NO_PINGS = { parse: [] };
@@ -171,17 +172,44 @@ async function autoFeueralarm(guild) {
 // Namens-Roulette (nur für Leute, die mitmachen)
 // ---------------------------------------------------------------------------
 async function namenZuruecksetzen(guild, aktiv) {
-  // Namensschild-Rolle (für Leute, deren Namen ich nicht ändern darf) einfach löschen
-  if (aktiv.roleId) {
-    await guild.roles.delete(aktiv.roleId, 'Namens-Roulette vorbei').catch(() => {});
+  const m = await guild.members.fetch(aktiv.userId).catch(() => null);
+  if (!m || m.nickname !== aktiv.name) return; // schon selbst geändert
+  if (aktiv.selbst) {
+    // Den Namen darf ich nicht ändern - also Bescheid sagen
+    await mainChat(guild)
+      ?.send({ content: `🎡 <@${aktiv.userId}>, deine 24 Stunden als **${aktiv.name}** sind vorbei. Du darfst dich mit \`/nick\` zurückbenennen.`, allowedMentions: { users: [aktiv.userId] } })
+      .catch(() => {});
     return;
   }
+  await m.setNickname(aktiv.original ?? null, 'Namens-Roulette vorbei').catch(() => {});
+}
+
+/** Owner & Co. müssen den Spitznamen selbst setzen - nach 10 Minuten wird kontrolliert. */
+async function selbstKontrolle(guild, g) {
+  const aktiv = g.namensroulette.aktiv;
+  if (!aktiv?.selbst || aktiv.kontrolliert || Date.now() < aktiv.kontrolleAb) return;
+  aktiv.kontrolliert = true;
+  save();
   const m = await guild.members.fetch(aktiv.userId).catch(() => null);
-  // Nur zurücksetzen, wenn der Name noch der vom Roulette ist (sonst hat die Person ihn selbst geändert)
-  if (m && m.nickname === aktiv.name) await m.setNickname(aktiv.original ?? null, 'Namens-Roulette vorbei').catch(() => {});
+  if (!m) return;
+  const chat = mainChat(guild);
+  if (m.nickname === aktiv.name) {
+    await chat?.send({ content: `✅ Kontrolle: <@${aktiv.userId}> heißt vorschriftsmäßig **${aktiv.name}**. Vorbildlich.`, allowedMentions: { parse: [] } }).catch(() => {});
+    return;
+  }
+  const strafe = await strafeEintragen(guild, aktiv.userId, `Arbeitsverweigerung beim Namens-Roulette (sollte „${aktiv.name}“ heißen)`);
+  await chat
+    ?.send({
+      content:
+        `🚨 **Kontrolle:** <@${aktiv.userId}> heißt immer noch nicht **${aktiv.name}**. Das ist Arbeitsverweigerung beim Namens-Roulette.\n` +
+        `> Eintrag ins Strafregister. Strafe: **${strafe}**\n> Nachholen geht mit \`/nick ${aktiv.name}\``,
+      allowedMentions: { users: [aktiv.userId] },
+    })
+    .catch(() => {});
 }
 
 async function rouletteAblauf(guild, g) {
+  await selbstKontrolle(guild, g);
   const aktiv = g.namensroulette.aktiv;
   if (!aktiv || Date.now() < aktiv.bis) return;
   g.namensroulette.aktiv = null;
@@ -213,17 +241,11 @@ export async function namensrouletteDrehen(guild) {
       }
       nr.aktiv = { userId: id, original, name, bis };
     } else {
-      // Owner (oder Rolle über mir): Den Namen darf kein Bot ändern, also gibt es ein Namensschild als Rolle
-      let role = null;
-      try {
-        role = await guild.roles.create({ name: `🏷️ ${name}`, colors: { primaryColor: 0xf1c40f }, permissions: [], reason: 'Namens-Roulette (Namensschild)' });
-        await m.roles.add(role, 'Namens-Roulette');
-        nr.aktiv = { userId: id, name, roleId: role.id, bis };
-        hinweis = '\n_(Den Namen vom Chef darf ich nicht ändern, deshalb gibt es ein Namensschild.)_';
-      } catch {
-        if (role) await role.delete('Namensschild konnte nicht vergeben werden').catch(() => {});
-        continue;
-      }
+      // Server-Owner (oder Rolle über mir): Den Namen darf kein Bot ändern, also muss die Person selbst ran
+      nr.aktiv = { userId: id, original: m.nickname, name, bis, selbst: true, kontrolleAb: Date.now() + 10 * 60 * 1000 };
+      hinweis =
+        `\n📝 Discord lässt mich deinen Namen nicht ändern, also machst du das selbst: Tipp einfach \`/nick ${name}\` ein.` +
+        '\nIch kontrolliere das in **10 Minuten**. 👀';
     }
     save();
     await mainChat(guild)
@@ -376,7 +398,8 @@ export async function handleSpassCommand(interaction) {
         save();
         const schild = interaction.member.manageable
           ? ''
-          : '\n\n🏷️ Deinen Anzeigenamen darf ich nicht ändern (Discord lässt Bots den Namen vom Server-Owner nie ändern, und auch nicht von Leuten, die über mir stehen). Du bekommst stattdessen für 24 Stunden ein **Namensschild als Rolle**.';
+          : '\n\n📝 Deinen Namen darf ich nicht selbst ändern (Discord lässt Bots den Namen vom Server-Owner nie ändern, und auch nicht von Leuten, die über mir stehen). ' +
+            'Wenn du dran bist, setzt du den Spitznamen also **selbst** mit `/nick`. Ich kontrolliere das. Wer sich weigert, landet im Strafregister.';
         return interaction.reply({
           content: `🎡 Du machst beim Namens-Roulette mit! Jeden Tag um ${config.spass.namensrouletteUhrzeit} bekommt eine Person für 24 Stunden einen dummen Spitznamen. Aussteigen geht jederzeit mit \`/namensroulette aussteigen\`.${schild}`,
           ...ephemeral,

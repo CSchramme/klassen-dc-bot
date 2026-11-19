@@ -30,15 +30,16 @@ function cooled(map, key, ms) {
 }
 
 /** Eintrag ins Strafregister + Protokoll in der #🚨-polizeiwache. */
-async function bestrafen(message, grund) {
-  const g = guildState(message.guild.id);
+/** Eintrag ins Strafregister + Protokoll in der #🚨-polizeiwache. Gibt die (dumme) Strafe zurück. */
+export async function strafeEintragen(guild, userId, grund, tatortId = null) {
+  const g = guildState(guild.id);
   const strafe = chance(0.15) && insiderNames().length ? `Eine Schweigeminute für ${pick(insiderNames())}` : pick(STRAFEN);
-  const list = (g.strafregister[message.author.id] ??= []);
+  const list = (g.strafregister[userId] ??= []);
   list.push({ grund, strafe, datum: new Date().toISOString() });
   if (list.length > 50) list.splice(0, list.length - 50);
   save();
 
-  const log = findChannel(message.guild, 'modlog');
+  const log = findChannel(guild, 'modlog');
   if (log?.isTextBased()) {
     await log
       .send({
@@ -47,8 +48,8 @@ async function bestrafen(message, grund) {
             .setColor(0x34495e)
             .setTitle(`📋 Protokoll Nr. ${Math.floor(Math.random() * 90000) + 10000}`)
             .addFields(
-              { name: 'Täter:in', value: `<@${message.author.id}>`, inline: true },
-              { name: 'Tatort', value: `<#${message.channel.id}>`, inline: true },
+              { name: 'Täter:in', value: `<@${userId}>`, inline: true },
+              { name: 'Tatort', value: tatortId ? `<#${tatortId}>` : 'Namens-Roulette', inline: true },
               { name: 'Verstoß', value: grund },
               { name: 'Strafe', value: strafe },
             )
@@ -60,6 +61,8 @@ async function bestrafen(message, grund) {
   }
   return strafe;
 }
+
+const bestrafen = (message, grund) => strafeEintragen(message.guild, message.author.id, grund, message.channel.id);
 
 async function deleteAndWarn(message, text, grund) {
   await message.delete().catch(() => {});
