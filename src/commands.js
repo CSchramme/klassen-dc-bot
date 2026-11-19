@@ -1,0 +1,96 @@
+import { InteractionContextType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
+
+const guildOnly = (b) => b.setContexts(InteractionContextType.Guild);
+
+export const COMMANDS = [
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('setup')
+      .setDescription('Baut den dümmsten Server der Welt auf (Kanäle, Rollen, Captcha, Icon …)')
+      .setDefaultMemberPermissions(P.Administrator)
+      .addBooleanOption((o) => o.setName('alles_loeschen').setDescription('Vorher ALLE Kanäle löschen (nur bei neuem/leerem Server!)'))
+      .addStringOption((o) => o.setName('servername').setDescription('Eigener Servername (sonst ein dummer)').setMaxLength(100)),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('chaos')
+      .setDescription('Soundboard-Überfälle in Sprachkanälen')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('an').setDescription('Bot platzt ab jetzt zufällig in Sprachkanäle'))
+      .addSubcommand((s) => s.setName('aus').setDescription('Ruhe bitte'))
+      .addSubcommand((s) => s.setName('jetzt').setDescription('Sofortiger Überfall auf deinen Sprachkanal'))
+      .addSubcommand((s) => s.setName('status').setDescription('Zeigt, ob Chaos an ist und welche Sounds es gibt')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('moderation')
+      .setDescription('Quatsch-Moderation an/aus')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('an').setDescription('Gänse werden wieder verfolgt'))
+      .addSubcommand((s) => s.setName('aus').setDescription('Amnestie für alle')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('server')
+      .setDescription('Servername und Logo ändern')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) =>
+        s
+          .setName('name')
+          .setDescription('Server umbenennen')
+          .addStringOption((o) => o.setName('name').setDescription('Neuer Servername').setRequired(true).setMinLength(2).setMaxLength(100)),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('icon')
+          .setDescription('Server-Logo ändern (ohne Bild: zufälliges dummes Logo)')
+          .addAttachmentOption((o) => o.setName('bild').setDescription('Eigenes Bild als Logo')),
+      )
+      .addSubcommand((s) => s.setName('zufall').setDescription('Zufälliger dummer Name UND zufälliges dummes Logo'))
+      .addSubcommand((s) =>
+        s
+          .setName('roulette')
+          .setDescription('Alle 6 Stunden ein neuer dummer Servername')
+          .addBooleanOption((o) => o.setName('aktiv').setDescription('An oder aus').setRequired(true)),
+      ),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('bot')
+      .setDescription('Name und Aussehen des Bots ändern')
+      .setDefaultMemberPermissions(P.Administrator)
+      .addSubcommand((s) =>
+        s
+          .setName('spitzname')
+          .setDescription('Spitzname des Bots auf diesem Server')
+          .addStringOption((o) => o.setName('name').setDescription('Neuer Spitzname').setRequired(true).setMaxLength(32)),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('avatar')
+          .setDescription('Profilbild des Bots (ohne Bild: Gerd-Avatar)')
+          .addAttachmentOption((o) => o.setName('bild').setDescription('Neues Profilbild')),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('name')
+          .setDescription('Benutzername des Bots (gilt überall, max. 2× pro Stunde)')
+          .addStringOption((o) => o.setName('name').setDescription('Neuer Benutzername').setRequired(true).setMinLength(2).setMaxLength(32)),
+      ),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('strafregister')
+      .setDescription('Zeigt das Strafregister (deins oder von jemand anderem)')
+      .addUserOption((o) => o.setName('nutzer').setDescription('Wessen Akte?')),
+  ),
+
+  guildOnly(new SlashCommandBuilder().setName('regeln').setDescription('Zeigt die Regeln (nochmal)')),
+
+  guildOnly(new SlashCommandBuilder().setName('insider').setDescription('Ein zufälliger Insider')),
+].map((c) => c.toJSON());
