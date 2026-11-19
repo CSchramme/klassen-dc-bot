@@ -22,6 +22,8 @@ const { handleModeration, ramEmbed, strafregisterEmbed } = await import('../src/
 const { overwrites } = await import('../src/features/setup.js');
 const { randomServerName, randomIconFile } = await import('../src/features/server.js');
 const { guildState } = await import('../src/storage.js');
+const fun = await import('../src/features/fun.js');
+const { localNow, parseTime } = await import('../src/util.js');
 
 let ok = 0;
 const check = (name, fn) => {
@@ -97,10 +99,41 @@ check('Team-Kodex', () => TEAM_KODEX.forEach((s) => assert.ok(s.title.length <= 
 check('Befehle', () => {
   assert.ok(COMMANDS.length <= 100);
   for (const c of COMMANDS) assert.match(c.name, /^[a-z_-]{1,32}$/);
+  const names = COMMANDS.map((c) => c.name);
+  assert.equal(new Set(names).size, names.length, 'Befehl doppelt');
 });
 check('Server-Zufall', () => {
   assert.ok(randomServerName().length <= 100);
   assert.ok(randomIconFile().endsWith('.png'));
+});
+
+// ---------------------------------------------------------------- Spaß-Generatoren
+check('Vertretungsplan & Zeugnis', () => {
+  const a = serialize({ embeds: [fun.vertretungsplanEmbed('g1', 'Donnerstag, 19.11.', '2026-11-19')] });
+  const b = serialize({ embeds: [fun.vertretungsplanEmbed('g1', 'Donnerstag, 19.11.', '2026-11-19')] });
+  assert.deepEqual(a, b, 'Vertretungsplan muss am selben Tag gleich sein');
+  const z1 = serialize({ embeds: [fun.zeugnisEmbed({ id: 'u1' }, 'Tim', '2026-11-19')] });
+  const z2 = serialize({ embeds: [fun.zeugnisEmbed({ id: 'u1' }, 'Tim', '2026-11-19')] });
+  assert.deepEqual(z1, z2, 'Zeugnis muss am selben Tag gleich sein');
+  for (let i = 0; i < 200; i++) {
+    serialize({ embeds: [fun.vertretungsplanEmbed(`g${i}`, 'Montag, 01.01.', `2027-01-${i}`)] });
+    serialize({ embeds: [fun.zeugnisEmbed({ id: `u${i}` }, 'Ein sehr langer Anzeigename hier', `d${i}`)] });
+  }
+});
+check('Ausreden, Hausaufgaben, Durchsagen, Spitznamen', () => {
+  for (let i = 0; i < 300; i++) {
+    for (const t of [fun.ausrede(), fun.hausaufgabe(), fun.durchsage(), fun.leetDurchsage()]) assert.ok(t.length > 10 && t.length <= 2000);
+    assert.ok(fun.spitzname().length <= 32, `Spitzname zu lang: ${fun.spitzname()}`);
+  }
+  for (const n of fun.SPITZNAMEN) assert.ok(n.length <= 32, `Spitzname zu lang: ${n}`);
+});
+check('Uhrzeit-Helfer', () => {
+  const t = localNow('Europe/Berlin', new Date('2026-11-19T12:37:00Z')); // 13:37 in Berlin (Winterzeit)
+  assert.equal(t.minutes, 13 * 60 + 37);
+  assert.equal(t.weekday, 4);
+  assert.equal(t.date, '2026-11-19');
+  assert.equal(parseTime('07:15'), 435);
+  assert.equal(parseTime('quatsch', 99), 99);
 });
 
 // ---------------------------------------------------------------- Rechte

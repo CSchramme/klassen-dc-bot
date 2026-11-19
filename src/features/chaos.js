@@ -9,7 +9,7 @@ const busy = new Set(); // guildIds, in denen gerade ein Überfall läuft
 const timers = new Map(); // guildId -> Timeout
 let defaultSoundsCache = null;
 
-const humans = (channel) => channel.members.filter((m) => !m.user.bot).size;
+export const humans = (channel) => channel.members.filter((m) => !m.user.bot).size;
 
 /** Startet den Zufalls-Timer für alle Server und hört auf Sprachkanal-Beitritte. */
 export function initChaos(client) {
@@ -80,8 +80,9 @@ export async function getSounds(guild) {
 /**
  * Überfall auf einen Sprachkanal: beitreten, ein paar Sounds spielen, wieder gehen.
  * Gibt einen kurzen Status-Text zurück (für /chaos jetzt).
+ * opts.filter: bevorzugte Sounds (RegExp auf den Namen), opts.count: Anzahl, opts.quick: kurze Pausen
  */
-export async function raid(channel) {
+export async function raid(channel, opts = {}) {
   const guild = channel.guild;
   if (channel.type !== ChannelType.GuildVoice) return 'Das ist kein normaler Sprachkanal.';
   if (busy.has(guild.id)) return 'Ich bin schon woanders am Nerven. Einer nach dem anderen.';
@@ -90,7 +91,11 @@ export async function raid(channel) {
   busy.add(guild.id);
   let connection;
   try {
-    const sounds = await getSounds(guild);
+    let sounds = await getSounds(guild);
+    if (opts.filter) {
+      const matching = sounds.filter((s) => opts.filter.test(s.name));
+      if (matching.length) sounds = matching;
+    }
     if (sounds.length === 0) return 'Keine Soundboard-Sounds gefunden. Ladet welche in den Servereinstellungen hoch!';
 
     connection = joinVoiceChannel({
@@ -101,9 +106,9 @@ export async function raid(channel) {
       selfMute: false,
     });
     await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
-    await sleep(randInt(800, 2500));
+    await sleep(opts.quick ? randInt(200, 500) : randInt(800, 2500));
 
-    const count = randInt(config.chaos.minSounds, Math.max(config.chaos.minSounds, config.chaos.maxSounds));
+    const count = opts.count ?? randInt(config.chaos.minSounds, Math.max(config.chaos.minSounds, config.chaos.maxSounds));
     let played = 0;
     for (let i = 0; i < count; i++) {
       if (humans(channel) === 0) break; // alle geflohen
@@ -115,9 +120,9 @@ export async function raid(channel) {
         logError('chaos:send', err);
         break;
       }
-      await sleep(randInt(2500, 7000));
+      await sleep(opts.quick ? 1500 : randInt(2500, 7000));
     }
-    await sleep(randInt(500, 3000));
+    await sleep(opts.quick ? 300 : randInt(500, 3000));
     return played > 0 ? `Mission erfüllt: ${played} Sound(s) in ${channel.name} gespielt. 🫡` : 'Ich war da, aber es kam kein Ton raus. (Fehlt mir das Recht „Soundboard verwenden"?)';
   } catch (err) {
     logError('chaos:raid', err);

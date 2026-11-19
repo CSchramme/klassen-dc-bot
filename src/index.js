@@ -14,6 +14,7 @@ import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moder
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
+import { SPASS_COMMANDS, handleSpassCommand, initEvents } from './features/events.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_TOKEN fehlt. Kopiere .env.example nach .env und trag den Token ein.');
@@ -61,6 +62,7 @@ client.once(Events.ClientReady, async () => {
   setInterval(rotateStatus, 5 * 60 * 1000);
   initChaos(client);
   initRoulette(client);
+  initEvents(client);
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommands(guild));
@@ -70,6 +72,7 @@ client.on(Events.GuildCreate, (guild) => registerCommands(guild));
 // ---------------------------------------------------------------------------
 async function handleCommand(interaction) {
   const ephemeral = { flags: MessageFlags.Ephemeral };
+  if (SPASS_COMMANDS.includes(interaction.commandName)) return handleSpassCommand(interaction);
   const g = guildState(interaction.guildId);
 
   switch (interaction.commandName) {
@@ -101,8 +104,10 @@ async function handleCommand(interaction) {
         });
       }
       // jetzt
-      const channel = interaction.member.voice?.channel;
-      if (!channel) return interaction.reply({ content: 'Du musst selbst in einem Sprachkanal sein. Ich komm dann. Versprochen.', ...ephemeral });
+      const channel = interaction.options.getChannel('kanal') ?? interaction.member.voice?.channel;
+      if (!channel) {
+        return interaction.reply({ content: 'Sag mir mit `kanal:` welcher Sprachkanal, oder geh selbst in einen. Ich komm dann. Versprochen.', ...ephemeral });
+      }
       await interaction.reply({ content: '🫡 Bin unterwegs …', ...ephemeral });
       const result = await raid(channel);
       return interaction.editReply(result);

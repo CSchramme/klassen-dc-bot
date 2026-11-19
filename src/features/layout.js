@@ -13,6 +13,7 @@ export const BOT_NICKNAME = '🧹 Hausmeister Willy (Azubi)';
 export const ROLES = {
   owner: { name: '👑 Owner (Chef vom Ganzen)', color: 0xf1c40f },
   coOwner: { name: '🥈 Co-Owner (fast Chef)', color: 0xbdc3c7 },
+  bots: { name: '🤖 Bots (keine Menschen)', color: 0x99aab5 },
   verified: { name: '✅ Verifiziert (vielleicht)', color: 0x57f287 },
   team: { name: '🛡️ Ordnungsamt (Team)', color: 0xe67e22 },
 };
@@ -78,7 +79,7 @@ export const LAYOUT = [
       { type: 'text', name: 'deutsch-auf-englisch', topic: 'German on English. Here is everything well.' },
       { type: 'text', name: 'englisch-auf-deutsch', topic: 'Englisch auf Deutsch. Ich verstehe nur Bahnhof.' },
       { type: 'text', name: 'bio-und-pizza', topic: 'Biologie. Und Pizza. Und Hausaufgaben (siehe #hausaufgaben).' },
-      { type: 'text', name: 'stundenplan-verwirrung', topic: 'Haben wir jetzt Sport oder Raum 204? Niemand weiß es.' },
+      { type: 'text', name: 'stundenplan-verwirrung', key: 'vertretung', topic: 'Haben wir jetzt Sport oder Raum 204? Niemand weiß es.' },
       { type: 'text', name: 'lehrkraft-zitate', topic: 'Zitate von Lehrkräften. Nett bleiben, die lesen vielleicht mit.' },
     ],
   },
@@ -100,7 +101,7 @@ export const LAYOUT = [
       { type: 'voice', name: '🧑‍🏫 Lehrerzimmer (VERBOTEN)' },
       { type: 'voice', name: '🚽 Klo (1 Person)', userLimit: 1 },
       { type: 'voice', name: '👥 Gruppenarbeit (max. 2)', userLimit: 2 },
-      { type: 'voice', name: '🏃 Pausenhof' },
+      { type: 'voice', name: '🏃 Pausenhof', key: 'pausenhof' },
       { type: 'voice', name: '🤫 Bibliothek (LEISE!)' },
       { type: 'voice', name: '🏀 Hinter der Turnhalle' },
       { type: 'voice', name: '🚌 Schulbus (99 Plätze)', userLimit: 99 },

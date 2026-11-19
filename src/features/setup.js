@@ -78,30 +78,44 @@ async function ensureRoles(guild, log) {
     hoist: true,
     permissions: [P.ManageMessages, P.ModerateMembers, P.MuteMembers, P.MoveMembers],
   });
+  const bots = await ensureRole(guild, ROLES.bots, { hoist: true });
   const verified = await ensureRole(guild, ROLES.verified);
   for (const r of LOTTERY_ROLES) await ensureRole(guild, r);
+  g.ids.role_bots = bots.id;
   g.ids.role_owner = owner.id;
   g.ids.role_coOwner = coOwner.id;
   g.ids.role_verified = verified.id;
   g.ids.role_team = team.id;
   save();
-  log.push(`🎭 ${4 + LOTTERY_ROLES.length} Rollen erstellt (bzw. wiederverwendet)`);
+  log.push(`🎭 ${5 + LOTTERY_ROLES.length} Rollen erstellt (bzw. wiederverwendet)`);
 
-  // Reihenfolge: direkt unter der Bot-Rolle (höher darf der Bot nicht)
+  // Reihenfolge: direkt unter meiner eigenen Rolle (höher darf ein Bot keine Rollen schieben)
+  const order = [owner, coOwner, bots, team, verified];
   try {
     await guild.roles.fetch();
-    const top = guild.members.me.roles.highest.position;
-    const order = [owner, coOwner, team, verified];
+    const myRole = guild.members.me.roles.highest;
+    const top = myRole.position;
     if (top > order.length) {
       await guild.roles.setPositions(order.map((role, i) => ({ role: role.id, position: top - 1 - i })));
-      log.push('📶 Rollen sortiert: Owner > Co-Owner > Team > Verifiziert');
+      log.push('📶 Rollen sortiert: Owner > Co-Owner > Bots > Team > Verifiziert');
     } else {
-      log.push('⚠️ Rollen nicht sortiert: Schieb meine Rolle in den Servereinstellungen ganz nach oben und mach `/setup nur_rollen:True` nochmal.');
+      log.push(`⚠️ Rollen nicht sortiert: Meine Rolle „${myRole.name}“ steht zu weit unten.`);
+    }
+    await guild.roles.fetch();
+    const higher = guild.roles.cache.filter((r) => r.position > guild.members.me.roles.highest.position && !r.managed);
+    if (higher.size) {
+      log.push(
+        `⚠️ Über meiner Rolle „${guild.members.me.roles.highest.name}“ stehen noch: ${higher.map((r) => r.name).join(', ')}. ` +
+          'Zieh meine Rolle unter **Servereinstellungen → Rollen** ganz nach oben und führ `/setup nur_rollen:True` nochmal aus.',
+      );
     }
   } catch (err) {
     logError('setup:positions', err);
     log.push(`⚠️ Rollen konnten nicht sortiert werden (${err.message})`);
   }
+
+  // Ich selbst bekomme die Bots-Rolle (damit ich in der Mitgliederliste unter "Bots" stehe)
+  await guild.members.me.roles.add(bots, 'Ich bin ein Bot').catch(() => {});
 
   // Serverbesitzer bekommt die Owner-Rolle
   try {
@@ -112,7 +126,18 @@ async function ensureRoles(guild, log) {
     logError('setup:owner', err);
     log.push(`⚠️ Owner-Rolle konnte nicht vergeben werden (${err.message})`);
   }
-  return { owner, coOwner, team, verified };
+  return { owner, coOwner, bots, team, verified };
+}
+
+/** Aktuelle Rollen-Reihenfolge als Text (oberste zuerst). */
+function roleOrder(guild) {
+  const meId = guild.members.me.roles.highest.id;
+  return guild.roles.cache
+    .filter((r) => r.id !== guild.roles.everyone.id)
+    .sort((a, b) => b.position - a.position)
+    .first(12)
+    .map((r, i) => `${i + 1}. ${r.name}${r.id === meId ? ' ← ich' : ''}`)
+    .join('\n');
 }
 
 /** /co-owner: Nur der Serverbesitzer darf Co-Owner ernennen oder absetzen (die Rolle hat Admin-Rechte). */
@@ -310,7 +335,14 @@ export async function handleSetupCommand(interaction) {
       logError('setup:roles', err);
       log.push(`❌ Abgebrochen: ${err.message}`);
     }
-    return interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x57f287).setTitle('🎭 Rollen aktualisiert').setDescription(log.join('\n'))] });
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0x57f287)
+          .setTitle('🎭 Rollen aktualisiert')
+          .setDescription(`${log.join('\n')}\n\n**Reihenfolge jetzt (oben = wichtig):**\n${roleOrder(guild)}`),
+      ],
+    });
   }
 
   if (wipe) {

@@ -1,4 +1,5 @@
-import { InteractionContextType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
+import { ChannelType, InteractionContextType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
+import { AUTOMATIK } from './features/events.js';
 
 const guildOnly = (b) => b.setContexts(InteractionContextType.Guild);
 
@@ -28,7 +29,14 @@ export const COMMANDS = [
       .setDefaultMemberPermissions(P.ManageGuild)
       .addSubcommand((s) => s.setName('an').setDescription('Bot platzt ab jetzt zufällig in Sprachkanäle'))
       .addSubcommand((s) => s.setName('aus').setDescription('Ruhe bitte'))
-      .addSubcommand((s) => s.setName('jetzt').setDescription('Sofortiger Überfall auf deinen Sprachkanal'))
+      .addSubcommand((s) =>
+        s
+          .setName('jetzt')
+          .setDescription('Sofortiger Überfall auf einen Sprachkanal')
+          .addChannelOption((o) =>
+            o.setName('kanal').setDescription('Welcher Sprachkanal? (sonst deiner)').addChannelTypes(ChannelType.GuildVoice),
+          ),
+      )
       .addSubcommand((s) => s.setName('status').setDescription('Zeigt, ob Chaos an ist und welche Sounds es gibt')),
   ),
 
@@ -110,5 +118,56 @@ export const COMMANDS = [
       .setName('ram')
       .setDescription('Wie viel RAM hat RAM Altman dir schon geklaut?')
       .addUserOption((o) => o.setName('nutzer').setDescription('Wessen RAM-Konto?')),
+  ),
+
+  guildOnly(new SlashCommandBuilder().setName('vertretungsplan').setDescription('Der heutige Vertretungsplan (ohne Gewähr)')),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('zeugnis')
+      .setDescription('Stellt ein Zeugnis aus (einmal pro Tag, dann bleibt es gleich)')
+      .addUserOption((o) => o.setName('nutzer').setDescription('Für wen?')),
+  ),
+
+  guildOnly(new SlashCommandBuilder().setName('ausrede').setDescription('Ausrede für vergessene Hausaufgaben')),
+
+  guildOnly(new SlashCommandBuilder().setName('hausaufgabe').setDescription('Eine sinnlose Hausaufgabe')),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('feueralarm')
+      .setDescription('🚨 Feueralarm: alle aus den Sprachkanälen auf den Pausenhof (und zurück)')
+      .setDefaultMemberPermissions(P.ManageGuild),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('automatik')
+      .setDescription('Automatischen Unsinn an-/ausschalten')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('status').setDescription('Was ist an, was ist aus?'))
+      .addSubcommand((s) =>
+        s
+          .setName('setzen')
+          .setDescription('Eine Funktion an- oder ausschalten')
+          .addStringOption((o) =>
+            o
+              .setName('funktion')
+              .setDescription('Welche?')
+              .setRequired(true)
+              .addChoices(...Object.entries(AUTOMATIK).map(([value, name]) => ({ name, value }))),
+          )
+          .addBooleanOption((o) => o.setName('aktiv').setDescription('An oder aus').setRequired(true)),
+      ),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('namensroulette')
+      .setDescription('Jeden Tag ein dummer Spitzname für eine Person (nur wer mitmacht)')
+      .addSubcommand((s) => s.setName('mitmachen').setDescription('Ich mach mit!'))
+      .addSubcommand((s) => s.setName('aussteigen').setDescription('Ich will meinen Namen zurück'))
+      .addSubcommand((s) => s.setName('liste').setDescription('Wer macht mit?'))
+      .addSubcommand((s) => s.setName('drehen').setDescription('Sofort drehen (nur mit „Server verwalten“)')),
   ),
 ].map((c) => c.toJSON());

@@ -13,6 +13,12 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 📜 **Team-Kodex** | Todernste Richtlinie (Aktenzeichen OA-27b/6) darüber, wie dumm das Team schreiben muss. Der Bot ermahnt Teammitglieder, die einen Punkt ans Satzende setzen. |
 | 💾 **Insider: RAM Altman** | Der OpenAI-Chef, der allen den RAM klaut. Schreibt jemand „RAM“, „ChatGPT“ oder „Arbeitsspeicher“, kommt eine Reaktion. Ab und zu klaut RAM Altman jemandem ein paar GB (Kontostand mit `/ram`). Dazu gibt es Captcha-Fragen, Willy-Sprüche und ein eigenes Server-Icon. Eigene Insider kommen in `src/insider.js`. |
 | ✏️ **Name & Logo ändern** | Servername, Server-Logo, Bot-Spitzname, Bot-Name und Bot-Avatar per Befehl ändern, plus Namens-Roulette alle 6 Stunden. |
+| 📋 **Fake-Vertretungsplan** | Jeden Schultag um 07:15 in `#stundenplan-verwirrung`: „3. Std. Mathe: findet im Kopf statt“. Mit `/vertretungsplan` jederzeit abrufbar. |
+| 📢 **Durchsagen** | Ab und zu meldet sich das Sekretariat: „Der Besitzer eines silbernen Fahrrads soll sich melden. Das Fahrrad vermisst dich.“ Jeden Tag um 13:37 kommt außerdem eine 13:37-Durchsage. |
+| 🧹 **Putz-Rundgang** | Willy wischt durch einen aktiven Kanal: 60 Sekunden lang gilt 30 Sekunden Slowmode, weil der Boden nass ist. |
+| 🚨 **Feueralarm** | Sirene im Sprachkanal, alle werden auf den Pausenhof verschoben und nach 45 Sekunden zurückgebracht. Kommt selten zufällig (alle 2–7 Tage) oder per `/feueralarm`. |
+| 🎡 **Namens-Roulette** | Nur für Leute, die mitmachen: Jeden Morgen bekommt eine Person für 24 Stunden einen dummen Spitznamen. |
+| 📜 **Zeugnis, Ausreden, Hausaufgaben** | `/zeugnis` (Quatschfächer, bleibt pro Tag gleich), `/ausrede`, `/hausaufgabe`. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -69,6 +75,7 @@ Auf dem Discord-Server:
 
 Danach:
 - **Soundboard-Sounds hochladen:** Servereinstellungen → Soundboard. Ohne eigene Sounds nimmt der Bot die Discord-Standardsounds.
+- **Rollen-Reihenfolge:** Die Bot-Rolle **Hausmeister Willy** muss in den Servereinstellungen unter **Rollen** ganz oben stehen, sonst darf der Bot die anderen Rollen nicht verwalten. Das legt Discord so fest. `/setup nur_rollen:True` sortiert danach den Rest (Owner > Co-Owner > Bots > Team > Verifiziert) und zeigt die aktuelle Reihenfolge an.
 - Du (der Serverbesitzer) bekommst automatisch die Rolle **👑 Owner (Chef vom Ganzen)**. Co-Owner ernennst du mit `/co-owner @name`. Beide Rollen haben Admin-Rechte, also nur an Leute geben, denen du vertraust.
 - Moderator:innen die Rolle **🛡️ Ordnungsamt (Team)** geben. Dann sehen sie den Team-Bereich mit dem Kodex.
 - Wenn `/setup` schon gelaufen ist und nur Rollen fehlen: `/setup nur_rollen:True`. Das legt keine Kanäle doppelt an.
@@ -90,12 +97,20 @@ Danach:
 | `/bot spitzname <name>` | Admin | Spitzname des Bots auf dem Server |
 | `/bot avatar [bild]` | Admin | Profilbild des Bots (ohne Bild: Willy) |
 | `/bot name <name>` | Admin | Benutzername des Bots (max. 2× pro Stunde) |
-| `/chaos an / aus / jetzt / status` | Server verwalten | Soundboard-Überfälle steuern. `jetzt` = sofort in deinen Sprachkanal |
+| `/chaos an / aus / status` | Server verwalten | Soundboard-Überfälle an/aus, Sounds anzeigen |
+| `/chaos jetzt [kanal]` | Server verwalten | Sofortiger Überfall auf den gewählten Sprachkanal (ohne Angabe: deinen) |
+| `/feueralarm` | Server verwalten | 🚨 Alle aus den Sprachkanälen auf den Pausenhof, nach 45 s zurück |
+| `/automatik status / setzen` | Server verwalten | Automatischen Unsinn an-/ausschalten (Vertretungsplan, Durchsagen, 13:37, Putzen, Feueralarm, Namens-Roulette) |
 | `/moderation an / aus` | Server verwalten | Quatsch-Moderation |
 | `/strafregister [nutzer]` | alle | Zeigt die Akte |
 | `/regeln` | alle | Regeln anzeigen |
 | `/einladung` | alle | Einladungslink für den Server (führt direkt zum Captcha, läuft nie ab) |
 | `/insider` | alle | Zufälliger Insider |
+| `/vertretungsplan` | alle | Heutiger Vertretungsplan |
+| `/zeugnis [nutzer]` | alle | Fake-Zeugnis (pro Person und Tag gleich) |
+| `/ausrede` | alle | Ausrede für vergessene Hausaufgaben |
+| `/hausaufgabe` | alle | Sinnlose Hausaufgabe |
+| `/namensroulette mitmachen / aussteigen / liste / drehen` | alle (drehen: Server verwalten) | Täglicher Spitzname für Freiwillige |
 | `/ram [nutzer]` | alle | Wie viel RAM hat RAM Altman dir schon geklaut? (mit Bestenliste) |
 
 ---
@@ -161,6 +176,12 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 | `CHAOS_MIN_SOUNDS` / `CHAOS_MAX_SOUNDS` | 1 / 4 | Sounds pro Besuch |
 | `CHAOS_DEFAULT_SOUNDS` | true | Discord-Standardsounds nehmen, wenn der Server keine eigenen hat |
 | `MOD_TIMEOUT_SECONDS` | 30 | Timeout für Gans-Erwähnungen (0 = keiner) |
+| `ZEITZONE` | Europe/Berlin | Zeitzone für alle Uhrzeiten |
+| `VERTRETUNGSPLAN_UHRZEIT` / `NAMENSROULETTE_UHRZEIT` | 07:15 / 07:00 | Feste Uhrzeiten |
+| `DURCHSAGE_STUNDEN_MIN/MAX` | 3 / 8 | Abstand zwischen Durchsagen |
+| `PUTZEN_STUNDEN_MIN/MAX` | 4 / 10 | Abstand zwischen Putz-Rundgängen |
+| `FEUERALARM_TAGE_MIN/MAX` | 2 / 7 | Abstand zwischen zufälligen Feueralarmen |
+| `AKTIV_VON` / `AKTIV_BIS` | 8 / 21 | Zufälliges nur zwischen diesen Uhrzeiten |
 | `GEMINI_MODEL` | gemini-3.8-flash | Gemini-Modell für Willy |
 | `CLAUDE_MODEL` | claude-opus-5-5 | Claude-Modell für Willy |
 | `TICKET_MAX_REPLIES` | 25 | Max. Willy-Antworten pro Ticket |
