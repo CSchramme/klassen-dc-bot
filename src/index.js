@@ -53,6 +53,11 @@ async function registerCommands(guild) {
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Eingeloggt als ${client.user.tag}`);
   console.log(`🔗 Einladungslink: https://discord.com/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`);
+  console.log(
+    process.env.ANTHROPIC_API_KEY
+      ? `🤖 Willy antwortet mit Claude (${config.claude.model}).`
+      : '🥫 Kein ANTHROPIC_API_KEY in der .env: Willy antwortet nur mit vorgefertigten Sprüchen.',
+  );
   for (const guild of client.guilds.cache.values()) await registerCommands(guild);
   rotateStatus();
   setInterval(rotateStatus, 5 * 60 * 1000);

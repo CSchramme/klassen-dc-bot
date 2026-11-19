@@ -115,8 +115,11 @@ Bitte nett bleiben: Insider sind Running Gags, keine Lästereien.
 
 Mit `ANTHROPIC_API_KEY` in der `.env` beantwortet Claude die Tickets als Willy. Ohne Key antwortet Willy mit vorgefertigten Sprüchen. Das funktioniert auch, ist aber weniger lustig.
 
-- Den API-Key gibt es auf https://console.anthropic.com. **Das kostet Geld** (pro Nachricht ein paar Zehntel Cent).
-- Standardmodell: `claude-opus-5-5` mit niedrigem Aufwand (`effort: low`), weil Willy nur kurz antwortet. Günstiger geht es mit `CLAUDE_MODEL=claude-haiku-5-5`.
+- **Ein Claude-Abo (Pro/Max auf claude.ai) funktioniert dafür nicht.** Bots brauchen einen API-Key, der getrennt abgerechnet wird.
+- So kommst du an den Key: Auf https://console.anthropic.com anmelden, unter **Billing** Guthaben aufladen (ab 5 $), dann unter **API Keys** einen Key erstellen und in die `.env` eintragen. Danach den Bot neu starten. In der Konsole steht dann „🤖 Willy antwortet mit Claude“.
+- **Kosten** (grob geschätzt): Mit `claude-opus-5-5` kostet eine Willy-Antwort etwa 1 Cent, 5 $ reichen also für ungefähr 500 Antworten. Mit `CLAUDE_MODEL=claude-haiku-5-5` ist es rund 40-mal billiger, die Antworten sind aber etwas weniger witzig.
+- Willy antwortet mit niedrigem Aufwand (`effort: low`), weil er eh nur kurz antwortet.
+- Den Key niemals posten oder auf GitHub hochladen. Die `.env` ist in `.gitignore` und wird deshalb nicht mit hochgeladen.
 - Kostenbremse: Nach `TICKET_MAX_REPLIES` Antworten (Standard 25) hat Willy Feierabend.
 - Wenn Claude eine Antwort ablehnt, versucht die API automatisch ein Ersatzmodell (Server-Side-Fallback). Klappt das auch nicht, kommt ein Spruch aus der Dose.
 
