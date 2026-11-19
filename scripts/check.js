@@ -24,6 +24,7 @@ const { randomServerName, randomIconFile } = await import('../src/features/serve
 const { guildState } = await import('../src/storage.js');
 const fun = await import('../src/features/fun.js');
 const { SOUNDS, uploadSounds } = await import('../src/features/sounds.js');
+const { zeugnisPdf } = await import('../src/features/zeugnis-pdf.js');
 const { FORMS, handleFormular, handleFormularCommand } = await import('../src/features/formulare.js');
 const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
@@ -408,7 +409,17 @@ async function simulateTicketButtons() {
   assert.equal(replies.length, 3);
 }
 
+async function checkZeugnisPdf() {
+  for (const name of ['Tim', '🥔 Kartoffel des Tages', 'Ein sehr, sehr langer Name mit Umlauten ÄÖÜß und 日本語', '']) {
+    const pdf = await zeugnisPdf(fun.zeugnisDaten('u1', name, '2026-11-19'));
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-', 'kein PDF');
+    assert.ok(pdf.length > 10_000 && pdf.length < 8 * 1024 * 1024, `PDF-Größe komisch: ${pdf.length}`);
+    assert.equal((pdf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length, 1, 'Zeugnis muss genau 1 Seite haben');
+  }
+}
+
 for (const [name, fn] of [
+  ['Zeugnis-PDF', checkZeugnisPdf],
   ['Formulare', simulateFormulare],
   ['Sound-Upload', simulateSoundUpload],
   ['Ticket-Knöpfe', simulateTicketButtons],

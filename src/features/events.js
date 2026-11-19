@@ -8,7 +8,8 @@ import { LAYOUT } from './layout.js';
 import { findChannel } from './roles.js';
 import { humans, raid } from './chaos.js';
 import { strafeEintragen } from './moderation.js';
-import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisEmbed } from './fun.js';
+import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisDaten, zeugnisEmbed } from './fun.js';
+import { zeugnisPdf } from './zeugnis-pdf.js';
 
 const NO_PINGS = { parse: [] };
 const HOUR = 60 * 60 * 1000;
@@ -463,9 +464,19 @@ export async function handleSpassCommand(interaction) {
     }
 
     case 'zeugnis': {
+      await interaction.deferReply(); // PDF bauen dauert einen Moment
       const member = interaction.options.getMember('nutzer') ?? interaction.member;
       const user = member.user ?? interaction.user;
-      return interaction.reply({ embeds: [zeugnisEmbed(user, member.displayName ?? user.username, heute().date)], allowedMentions: NO_PINGS });
+      const name = member.displayName ?? user.username;
+      const daten = zeugnisDaten(user.id, name, heute().date);
+      const pdf = await zeugnisPdf(daten);
+      const datei = `Zeugnis_${name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '') || 'Unbekannt'}.pdf`;
+      return interaction.editReply({
+        content: `📜 Das Zeugnis für **${escapeMarkdown(name)}** ist da. Bitte ausdrucken und den Eltern zeigen. (Oder lieber nicht.)`,
+        embeds: [zeugnisEmbed(user, name, heute().date)],
+        files: [{ attachment: pdf, name: datei }],
+        allowedMentions: NO_PINGS,
+      });
     }
 
     case 'sitzplan': {

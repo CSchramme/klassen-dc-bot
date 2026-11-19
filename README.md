@@ -19,7 +19,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🧹 **Putz-Rundgang** | Willy wischt durch einen aktiven Kanal: 60 Sekunden lang gilt 30 Sekunden Slowmode, weil der Boden nass ist. |
 | 🚨 **Feueralarm** | Sirene im Sprachkanal, alle werden auf den Pausenhof verschoben und nach 45 Sekunden zurückgebracht. Kommt selten zufällig (alle 2–7 Tage) oder per `/feueralarm`. |
 | 🎡 **Namens-Roulette** | Freiwillig oder mit `/namensroulette fuer-alle` für alle Aktiven: Jeden Morgen bekommt eine Person für 24 Stunden einen dummen Spitznamen. Den Namen des Server-Owners darf kein Bot ändern. Der Owner muss den Spitznamen deshalb selbst mit `/nick` setzen. Willy kontrolliert das nach 10 Minuten, wer sich weigert, landet im Strafregister. |
-| 📜 **Zeugnis, Ausreden, Hausaufgaben** | `/zeugnis` (Quatschfächer, bleibt pro Tag gleich), `/ausrede`, `/hausaufgabe`. |
+| 📜 **Zeugnis, Ausreden, Hausaufgaben** | `/zeugnis` gibt es als **PDF zum Ausdrucken** (Wappen, Notentabelle, Unterschriften, Stempel der Hausmeisterei, bleibt pro Tag gleich, klar als Quatsch gekennzeichnet). Dazu `/ausrede` und `/hausaufgabe`. |
 | 📝 **Nervige Formulare** | `/formular`: mehrseitige Anträge (Toilettengang WC-1, Pausenverlängerung P-7, Fensteröffnung F-12, Hausaufgabenbefreiung HA-0, Antrag auf ein Antragsformular 27b/6). Mit Pflichtangaben wie „Nachname in GROSSBUCHSTABEN“, „Uhrzeit mit Millisekunden“ und „Bitte HIER NICHTS eintragen“. Fehler sieht man erst ganz am Ende, dann geht es von vorne los. Am Ende gibt es einen öffentlichen Bescheid mit Widerspruchsformular. Abbrechen geht nur mit Formular AB-1. |
 | 🎤 **Sprachkanal-Umbenennung** | Sitzt jemand 45 Sekunden allein im Sprachkanal, heißt der Kanal z. B. „🦗 Anna und die Grillen“. Kommt jemand dazu, wird er zurückbenannt. |
 | ☕ **Willys Kaffeepause** | 1–2x am Tag macht Willy 10 Minuten Pause. Spaß-Befehle bekommen dann nur „☕ Pause. Noch 7 Minuten.“ (Tickets laufen weiter.) |
@@ -118,7 +118,7 @@ Danach:
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |
-| `/zeugnis [nutzer]` | alle | Fake-Zeugnis (pro Person und Tag gleich) |
+| `/zeugnis [nutzer]` | alle | Fake-Zeugnis als PDF (pro Person und Tag gleich) |
 | `/ausrede` | alle | Ausrede für vergessene Hausaufgaben |
 | `/hausaufgabe` | alle | Sinnlose Hausaufgabe |
 | `/namensroulette mitmachen / aussteigen / liste / drehen` | alle (drehen: Server verwalten) | Täglicher Spitzname für eine zufällige Person |

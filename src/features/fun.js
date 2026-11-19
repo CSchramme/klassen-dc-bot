@@ -93,22 +93,54 @@ function note(rng) {
   return { text: `${n}${mod}`, value: n + (mod === '+' ? -0.3 : mod === '-' ? 0.3 : 0) };
 }
 
-export function zeugnisEmbed(user, displayName, dateKey) {
-  const rng = seededRng(`zeugnis:${user.id}:${dateKey}`);
+const NOTEN_WORTE = ['', 'sehr gut', 'gut', 'befriedigend', 'ausreichend', 'mangelhaft', 'ungenügend'];
+
+const VERHALTEN = [
+  ['Arbeitsverhalten', ['stets bemüht', 'meistens anwesend', 'beeindruckend unauffällig', 'kreativ (leider)']],
+  ['Sozialverhalten', ['teilt Pausenbrote', 'grüßt Enten', 'hilfsbereit, wenn es nichts kostet', 'vorbildlich (verdächtig)']],
+  ['Pausenverhalten', ['ausgezeichnet', 'professionell', 'olympiareif', 'in der Pause am stärksten']],
+];
+
+/** Alle Zeugnis-Daten für eine Person und einen Tag (immer gleich am selben Tag). */
+export function zeugnisDaten(userId, displayName, dateKey) {
+  const rng = seededRng(`zeugnis:${userId}:${dateKey}`);
   const faecher = [...ZEUGNIS_FAECHER];
   if (hasRam()) faecher.push('RAM verteidigen');
-  const auswahl = shuffleWith(rng, faecher).slice(0, 7);
-  const noten = auswahl.map((f) => ({ fach: f, ...note(rng) }));
+  const noten = shuffleWith(rng, faecher)
+    .slice(0, 8)
+    .map((f) => {
+      const n = note(rng);
+      return { fach: f, ...n, wort: NOTEN_WORTE[Number(n.text[0])] };
+    });
   const schnitt = (noten.reduce((a, n) => a + n.value, 0) / noten.length).toFixed(1).replace('.', ',');
+  const [jahr, monat] = dateKey.split('-').map(Number);
+  const start = monat >= 8 ? jahr : jahr - 1;
+  return {
+    name: displayName,
+    noten,
+    schnitt,
+    versetzung: pickWith(rng, VERSETZUNG),
+    bemerkung: pickWith(rng, BEMERKUNGEN).replaceAll('{name}', displayName),
+    verhalten: VERHALTEN.map(([k, werte]) => [k, pickWith(rng, werte)]),
+    fehltage: { entschuldigt: Math.floor(rng() * 6), unentschuldigt: 0, gefuehlt: 20 + Math.floor(rng() * 80) },
+    aktenzeichen: `ZG-${jahr}/${String(Math.floor(rng() * 90000) + 10000)}`,
+    schuljahr: `${start}/${String(start + 1).slice(2)}`,
+    halbjahr: monat >= 2 && monat <= 7 ? 'Jahreszeugnis' : 'Halbjahreszeugnis',
+    datum: dateKey.split('-').reverse().join('.'),
+  };
+}
+
+export function zeugnisEmbed(user, displayName, dateKey) {
+  const d = zeugnisDaten(user.id, displayName, dateKey);
   return new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle(`📜 Zeugnis: ${displayName}`)
     .setDescription(
-      noten.map((n) => `• ${n.fach}: **${n.text}**`).join('\n') +
-        `\n\n**Durchschnitt:** ${schnitt}\n**Versetzung:** ${pickWith(rng, VERSETZUNG)}\n\n` +
-        `_Bemerkung: ${pickWith(rng, BEMERKUNGEN).replaceAll('{name}', displayName)}_`,
+      d.noten.map((n) => `• ${n.fach}: **${n.text}**`).join('\n') +
+        `\n\n**Durchschnitt:** ${d.schnitt}\n**Versetzung:** ${d.versetzung}\n\n` +
+        `_Bemerkung: ${d.bemerkung}_`,
     )
-    .setFooter({ text: 'Gez. Willy (Hausmeister, vertretungsweise Schulleitung) · Zeugnisse gibt es einmal pro Tag' });
+    .setFooter({ text: 'Gez. Willy (Hausmeister, vertretungsweise Schulleitung) · Das PDF zum Ausdrucken hängt an' });
 }
 
 // ---------------------------------------------------------------------------
