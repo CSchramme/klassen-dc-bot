@@ -21,9 +21,19 @@ export const SOUNDS = [
 // Soundboard-Plätze je nach Boost-Stufe
 const LIMITS = { [GuildPremiumTier.None]: 8, [GuildPremiumTier.Tier1]: 24, [GuildPremiumTier.Tier2]: 36, [GuildPremiumTier.Tier3]: 48 };
 
-/** Lädt alle fehlenden Sounds hoch, soweit Plätze frei sind. Gibt Textzeilen fürs Protokoll zurück. */
-export async function uploadSounds(guild) {
-  const existing = await guild.soundboardSounds.fetch();
+/**
+ * Lädt alle fehlenden Sounds hoch, soweit Plätze frei sind. Gibt Textzeilen fürs Protokoll zurück.
+ * replace: Willys Sounds, die schon da sind, vorher löschen (z. B. nach einem Update der Sounds).
+ */
+export async function uploadSounds(guild, { replace = false } = {}) {
+  let existing = await guild.soundboardSounds.fetch();
+  if (replace) {
+    const ours = new Set(SOUNDS.map((s) => s.name.toLowerCase()));
+    for (const sound of existing.values()) {
+      if (ours.has(sound.name.toLowerCase())) await sound.delete('Willys Sounds werden ersetzt').catch((err) => logError('sounds:delete', err));
+    }
+    existing = await guild.soundboardSounds.fetch();
+  }
   const names = new Set(existing.map((s) => s.name.toLowerCase()));
   const limit = LIMITS[guild.premiumTier] ?? 8;
   let free = limit - existing.size;
@@ -80,7 +90,7 @@ export async function handleSoundsCommand(interaction) {
   if (sub === 'hochladen') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
-      const lines = await uploadSounds(guild);
+      const lines = await uploadSounds(guild, { replace: interaction.options.getBoolean('ersetzen') ?? false });
       return interaction.editReply({
         embeds: [new EmbedBuilder().setColor(0x57f287).setTitle('🎵 Willys Sounds').setDescription(lines.join('\n') || 'Nichts zu tun.')],
       });

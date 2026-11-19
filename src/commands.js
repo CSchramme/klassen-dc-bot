@@ -125,7 +125,12 @@ export const COMMANDS = [
       .setName('sounds')
       .setDescription('Willys eigene Soundboard-Sounds')
       .setDefaultMemberPermissions(P.ManageGuild)
-      .addSubcommand((s) => s.setName('hochladen').setDescription('Willys Sounds (Feueralarm, Schulgong …) ins Soundboard laden'))
+      .addSubcommand((s) =>
+        s
+          .setName('hochladen')
+          .setDescription('Willys Sounds (Feueralarm, Schulgong …) ins Soundboard laden')
+          .addBooleanOption((o) => o.setName('ersetzen').setDescription('Willys Sounds, die schon da sind, durch die neueste Version ersetzen')),
+      )
       .addSubcommand((s) => s.setName('liste').setDescription('Welche Sounds hat der Server?')),
   ),
 

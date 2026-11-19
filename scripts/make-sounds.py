@@ -174,14 +174,28 @@ def besen():
     save("besen", track)
 
 
-# 8) Pausenklingel: elektrische Schulklingel
+# 8) Pausenklingel: elektrische Schulklingel ("Rrrrring")
+# Die Glocke schwingt durchgehend; ein Hammer schlägt ~22x pro Sekunde drauf und macht sie jedes Mal kurz lauter.
 def pausenklingel():
-    dur = 2.6
-    t = t_axis(dur)
-    metal = sum(a * np.sin(2 * np.pi * 1250 * r * t) for r, a in [(1, 1.0), (2.32, 0.5), (3.9, 0.3), (5.1, 0.15)])
-    hammer = np.clip(np.sin(2 * np.pi * 19 * t), 0, 1) ** 0.6
-    x = metal * hammer * np.clip((dur - t) / 0.3, 0, 1)
-    save("pausenklingel", lowpass(x, 0.4))
+    total, ringing = 2.8, 2.1
+    n = int(total * SR)
+    t = np.arange(n) / SR
+    env_low = np.zeros(n)
+    env_high = np.zeros(n)
+    clicks = np.zeros(n)
+    at = 0.0
+    while at < ringing:
+        i = int(at * SR)
+        amp = rng.uniform(0.85, 1.0) * min(1.0, 0.5 + at / 0.2)  # kurzes Anlaufen
+        dt = t[i:] - t[i]
+        env_low[i:] += amp * np.exp(-dt / 0.11)
+        env_high[i:] += amp * np.exp(-dt / 0.035)
+        clicks[i : i + int(0.003 * SR)] += rng.uniform(-1, 1, int(0.003 * SR)) * amp * 0.25
+        at += 1 / rng.uniform(21.5, 22.5)
+    low = np.sin(2 * np.pi * 840 * t) + 0.35 * np.sin(2 * np.pi * 840 * 2.0 * t)
+    high = 0.4 * np.sin(2 * np.pi * 840 * 2.76 * t) + 0.15 * np.sin(2 * np.pi * 840 * 5.4 * t)
+    x = low * env_low / env_low.max() + high * env_high / env_high.max() + clicks
+    save("pausenklingel", lowpass(x, 0.55))
 
 
 if __name__ == "__main__":

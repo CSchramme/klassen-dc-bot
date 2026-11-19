@@ -100,7 +100,8 @@ Danach:
 | `/bot name <name>` | Admin | Benutzername des Bots (max. 2× pro Stunde) |
 | `/chaos an / aus / status` | Server verwalten | Soundboard-Überfälle an/aus, Sounds anzeigen |
 | `/chaos jetzt [kanal]` | Server verwalten | Sofortiger Überfall auf den gewählten Sprachkanal (ohne Angabe: deinen) |
-| `/sounds hochladen / liste` | Server verwalten | Willys Sounds ins Soundboard laden bzw. alle Server-Sounds anzeigen |
+| `/sounds hochladen [ersetzen]` | Server verwalten | Willys Sounds ins Soundboard laden. Mit `ersetzen:True` werden schon vorhandene Willy-Sounds durch die neueste Version ersetzt |
+| `/sounds liste` | Server verwalten | Alle Sounds des Servers anzeigen |
 | `/feueralarm` | Server verwalten | 🚨 Alle aus den Sprachkanälen auf den Pausenhof, nach 45 s zurück |
 | `/automatik status / setzen` | Server verwalten | Automatischen Unsinn an-/ausschalten (Vertretungsplan, Durchsagen, 13:37, Putzen, Feueralarm, Namens-Roulette) |
 | `/moderation an / aus` | Server verwalten | Quatsch-Moderation |

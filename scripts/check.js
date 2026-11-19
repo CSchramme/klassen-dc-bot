@@ -288,6 +288,14 @@ async function simulateSoundUpload() {
   assert.ok(created.every((o) => o.contentType === 'audio/mpeg' && o.file.length > 1000));
   assert.ok(lines.some((l) => l.includes('Schon da') && l.includes('Schulgong')));
   assert.ok(lines.some((l) => l.includes('Kein Platz')));
+
+  // ersetzen: vorhandener "Schulgong" wird gelöscht und neu hochgeladen
+  const deleted = [];
+  const store = new Collection([['x', { name: 'Schulgong', delete: async () => { deleted.push('Schulgong'); store.delete('x'); } }]]);
+  const created2 = [];
+  await uploadSounds({ premiumTier: 0, soundboardSounds: { fetch: async () => store, create: async (o) => created2.push(o.name) } }, { replace: true });
+  assert.deepEqual(deleted, ['Schulgong']);
+  assert.ok(created2.includes('Schulgong') && created2.length === 8, `ersetzen hat ${created2.length} hochgeladen`);
 }
 
 // ---------------------------------------------------------------- Ticket-Knöpfe und Formular
