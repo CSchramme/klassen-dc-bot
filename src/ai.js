@@ -78,17 +78,44 @@ export async function discoverGeminiModels({ force = false } = {}) {
   return discovered;
 }
 
-/** Reihenfolge: eingestelltes Modell, eingestellte Ersatzmodelle (falls es sie gibt), dann was Google anbietet. Max. 4. */
+const COOLDOWN = new Map(); // Modell -> Zeitstempel, bis wann es ausgelassen wird
+const PAUSE_MS = { overloaded: 5 * 60_000, timeout: 2 * 60_000, quota: 30 * 60_000 };
+
+function pauseModel(model, kind) {
+  COOLDOWN.set(model, Date.now() + PAUSE_MS[kind]);
+}
+
+/** Abwechselnd ein großes Modell und ein Lite-Modell (Lite ist meist weniger überlastet). */
+function interleave(names) {
+  const big = names.filter((n) => !/lite/.test(n));
+  const lite = names.filter((n) => /lite/.test(n));
+  const out = [];
+  for (let i = 0; i < Math.max(big.length, lite.length); i++) {
+    if (big[i]) out.push(big[i]);
+    if (lite[i]) out.push(lite[i]);
+  }
+  return out;
+}
+
+/**
+ * Reihenfolge: eingestellte Modelle (falls es sie gibt), dann was Google anbietet, abwechselnd groß/lite.
+ * Modelle in der Pause werden übersprungen (außer es sind alle in der Pause).
+ */
 export async function geminiModels() {
   const found = await discoverGeminiModels();
   // Hat Google eine Liste geliefert, nur eingestellte Modelle nehmen, die es auch wirklich gibt
   const configured = [config.gemini.model, ...config.gemini.fallbackModels].filter((m) => m && (!found.length || found.includes(m)));
-  return [...new Set([...configured, ...found])].filter((m) => !MISSING.has(m)).slice(0, 4);
+  const all = [...new Set([...configured, ...interleave(found)])].filter((m) => !MISSING.has(m));
+  const now = Date.now();
+  const ready = all.filter((m) => (COOLDOWN.get(m) ?? 0) <= now);
+  if (ready.length) return ready.slice(0, 8);
+  // Alle in der Pause: das, dessen Pause am frühesten endet, trotzdem probieren
+  return all.sort((a, b) => (COOLDOWN.get(a) ?? 0) - (COOLDOWN.get(b) ?? 0)).slice(0, 1);
 }
 
 /**
  * Fragt Gemini. trace (optional) sammelt, was bei jedem Versuch passiert ist (für /ki test).
- * Pro Modell: ein Versuch, max. 15 Sekunden. Danach das nächste Modell.
+ * Pro Modell ein Versuch (max. 12 s), insgesamt max. 35 s. Danach nimmt Willy einen Spruch.
  */
 async function askGemini(system, history, trace = []) {
   gemini ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -103,10 +130,14 @@ async function askGemini(system, history, trace = []) {
   }
 
   const models = await geminiModels();
+  const deadline = Date.now() + 35_000;
   for (const [i, model] of models.entries()) {
+    const left = deadline - Date.now();
+    if (left < 3_000) break; // Zeitbudget aufgebraucht
     const next = models[i + 1];
     const weiter = next ? `Probiere ${next}.` : 'Willy nimmt so lange Sprüche.';
     const started = Date.now();
+    const timeout = Math.min(12_000, left);
     try {
       const res = await gemini.models.generateContent({
         model,
@@ -114,13 +145,16 @@ async function askGemini(system, history, trace = []) {
         config: {
           systemInstruction: system,
           maxOutputTokens: 8192,
-          httpOptions: { timeout: 15_000, retryOptions: { attempts: 1 } },
+          httpOptions: { timeout, retryOptions: { attempts: 1 } },
         },
       });
       const text = res.text?.trim() || null;
       const reason = res.candidates?.[0]?.finishReason ?? res.promptFeedback?.blockReason ?? 'unbekannt';
       trace.push({ model, ms: Date.now() - started, ok: Boolean(text), info: text ? 'Antwort erhalten' : `leere Antwort (Grund: ${reason})` });
-      if (text) return text;
+      if (text) {
+        COOLDOWN.delete(model);
+        return text;
+      }
       console.warn(`[ki] Gemini (${model}) hat leer geantwortet (Grund: ${reason}). ${weiter}`);
     } catch (err) {
       const status = err instanceof ApiError ? err.status : undefined;
@@ -130,14 +164,17 @@ async function askGemini(system, history, trace = []) {
         disable('Gemini-Key ungültig');
         return null;
       } else if (status === 503 || status === 500) {
-        console.warn(`[ki] Gemini (${model}) ist gerade überlastet. ${weiter}`);
+        pauseModel(model, 'overloaded');
+        console.warn(`[ki] Gemini (${model}) ist überlastet, 5 Minuten Pause. ${weiter}`);
       } else if (status === 429) {
-        console.warn(`[ki] Gratis-Kontingent für ${model} gerade aufgebraucht. ${weiter}`);
+        pauseModel(model, 'quota');
+        console.warn(`[ki] Gratis-Kontingent für ${model} aufgebraucht, 30 Minuten Pause. ${weiter}`);
       } else if (status === 404) {
         MISSING.add(model); // nicht nochmal probieren
         console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr), ich lasse es ab jetzt weg. ${weiter}`);
-      } else if (/abort|timeout|timed out/i.test(String(err.message)) || ms >= 14_000) {
-        console.warn(`[ki] Gemini (${model}) hat nach ${Math.round(ms / 1000)} s nicht geantwortet. ${weiter}`);
+      } else if (status === 504 || /abort|timeout|timed out|deadline/i.test(String(err.message)) || ms >= timeout - 1_000) {
+        pauseModel(model, 'timeout');
+        console.warn(`[ki] Gemini (${model}) hat nach ${Math.round(ms / 1000)} s nicht geantwortet, 2 Minuten Pause. ${weiter}`);
       } else {
         logError('ki:gemini', err);
         return null;
@@ -159,6 +196,11 @@ export async function testAI() {
   const history = [{ role: 'user', content: 'Test: Mein Stuhl wackelt.' }];
   const system = 'Du bist Willy, ein genervter Hausmeister. Antworte mit einem kurzen Satz auf Deutsch.';
   if (provider === 'gemini') {
+    const paused = [...COOLDOWN.entries()].filter(([, until]) => until > Date.now());
+    if (paused.length) {
+      lines.push(`⏸️ Hatten gerade Pause (für den Test aufgehoben): ${paused.map(([m]) => `\`${m}\``).join(', ')}`);
+      COOLDOWN.clear();
+    }
     const found = await discoverGeminiModels({ force: true });
     lines.push(found.length ? `📋 Für deinen Key verfügbar: ${found.slice(0, 8).map((m) => `\`${m}\``).join(', ')}` : '📋 Modellliste von Google nicht abrufbar.');
     const trace = [];

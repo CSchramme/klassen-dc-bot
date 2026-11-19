@@ -159,7 +159,8 @@ Ohne KI antwortet Willy mit vorgefertigten Sprüchen. Mit KI denkt er sich die d
 
 ### Für beide gilt
 - Willy antwortet mit KI **in Tickets** und **im normalen Chat, wenn man ihn erwähnt** (@Hausmeister Willy) oder auf seine Nachricht antwortet. Im Chat gibt es pro Person 15 Sekunden Pause zwischen zwei Fragen.
-- Klappt etwas nicht: `/ki test` zeigt genau, welches Modell welchen Fehler hatte. Pro Modell wartet Willy höchstens 15 Sekunden, dann probiert er das nächste und nimmt am Ende einen Spruch.
+- Bei Gemini fragt Willy selbst bei Google nach, welche Modelle dein Key nutzen darf. Er wechselt zwischen großen und Lite-Modellen ab (Lite ist seltener überlastet). Überlastete Modelle bekommen 5 Minuten Pause, nach höchstens 35 Sekunden kommt notfalls ein Spruch.
+- Klappt etwas nicht: `/ki test` zeigt genau, welches Modell welchen Fehler hatte.
 - Stehen beide Keys drin, gewinnt Claude.
 - Nach `TICKET_MAX_REPLIES` Antworten (Standard 25) pro Ticket hat Willy Feierabend.
 - Keys niemals posten oder auf GitHub hochladen. Die `.env` ist in `.gitignore` und wird deshalb nicht mit hochgeladen.
