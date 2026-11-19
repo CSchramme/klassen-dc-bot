@@ -290,7 +290,7 @@ export async function handleTicket(interaction, action) {
             new ActionRowBuilder().addComponents(
               new TextInputBuilder()
                 .setCustomId('problem')
-                .setLabel('Was ist dein Problem? (Ausführlich, wir lesen es eh nicht)')
+                .setLabel('Dein Problem (wir lesen es eh nicht)')
                 .setStyle(TextInputStyle.Paragraph)
                 .setMaxLength(1000)
                 .setRequired(true),

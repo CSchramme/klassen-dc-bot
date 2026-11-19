@@ -17,7 +17,7 @@ const { COMMANDS } = await import('../src/commands.js');
 const { startMessage, rulesPage, allRulesMessage } = await import('../src/features/rules.js');
 const { startCaptcha, handleCaptcha } = await import('../src/features/captcha.js');
 const { lotteryMessage } = await import('../src/features/lottery.js');
-const { ticketPanelMessage } = await import('../src/features/tickets.js');
+const { ticketPanelMessage, handleTicket } = await import('../src/features/tickets.js');
 const { handleModeration, ramEmbed, strafregisterEmbed } = await import('../src/features/moderation.js');
 const { overwrites } = await import('../src/features/setup.js');
 const { randomServerName, randomIconFile } = await import('../src/features/server.js');
@@ -230,7 +230,30 @@ async function simulateModeration() {
   serialize({ embeds: [ramEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
 }
 
+// ---------------------------------------------------------------- Ticket-Knöpfe und Formular
+async function simulateTicketButtons() {
+  const guildId = 'g-ticket';
+  let modal = null;
+  const replies = [];
+  const base = {
+    guildId,
+    user: { id: 'u3' },
+    reply: async (p) => replies.push(serialize(p)),
+    update: async (p) => replies.push(serialize(p)),
+    showModal: async (m) => (modal = m.toJSON()),
+  };
+  await handleTicket(base, 'open');
+  await handleTicket(base, 'nah');
+  await handleTicket(base, 'really');
+  assert.ok(modal, 'Ticket-Formular wurde nicht gezeigt');
+  assert.ok(modal.title.length <= 45, 'Formular-Titel > 45 Zeichen');
+  for (const row of modal.components) for (const c of row.components) assert.ok(c.label.length <= 45, `Formular-Label > 45 Zeichen: ${c.label}`);
+  await handleTicket(base, 'boss'); // kein Ticket-Kanal -> Hinweis
+  assert.equal(replies.length, 3);
+}
+
 for (const [name, fn] of [
+  ['Ticket-Knöpfe', simulateTicketButtons],
   ['Captcha-Simulation', simulateCaptcha],
   ['Moderation', simulateModeration],
 ]) {
