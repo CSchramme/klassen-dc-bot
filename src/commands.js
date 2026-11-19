@@ -93,4 +93,11 @@ export const COMMANDS = [
   guildOnly(new SlashCommandBuilder().setName('regeln').setDescription('Zeigt die Regeln (nochmal)')),
 
   guildOnly(new SlashCommandBuilder().setName('insider').setDescription('Ein zufälliger Insider')),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('ram')
+      .setDescription('Wie viel RAM hat RAM Altman dir schon geklaut?')
+      .addUserOption((o) => o.setName('nutzer').setDescription('Wessen RAM-Konto?')),
+  ),
 ].map((c) => c.toJSON());

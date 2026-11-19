@@ -5,7 +5,7 @@ import { config } from '../config.js';
 import { guildState, save } from '../storage.js';
 import { chance, logError, pick } from '../util.js';
 import { findChannel } from './roles.js';
-import { INSIDERS, insiderNames } from '../insider.js';
+import { RAM_DIEBSTAHL, findInsider, insiderNames } from '../insider.js';
 
 const NO_PINGS = { parse: [] };
 const snarkCooldown = new Map(); // channelId -> Zeitstempel
@@ -80,7 +80,6 @@ export async function handleModeration(message) {
   const g = guildState(message.guild.id);
   if (!g.moderation) return;
   const text = message.content ?? '';
-  const lower = text.toLowerCase();
   const channel = message.channel;
 
   // Eingang und Kodex in Ruhe lassen
@@ -89,12 +88,11 @@ export async function handleModeration(message) {
 
   try {
     // 1) Insider-Witze
-    for (const insider of INSIDERS) {
-      if (insider.trigger.some((t) => lower.includes(t.toLowerCase()))) {
-        if (insider.emoji) message.react(insider.emoji).catch(() => {});
-        if (cooled(insiderCooldown, `${channel.id}:${insider.name}`, 45_000)) await reply(message, pick(insider.reaktionen));
-        return;
-      }
+    const insider = findInsider(text);
+    if (insider) {
+      if (insider.emoji) message.react(insider.emoji).catch(() => {});
+      if (cooled(insiderCooldown, `${channel.id}:${insider.name}`, 45_000)) await reply(message, pick(insider.reaktionen));
+      return;
     }
 
     // 2) Gänse sind serverweit verboten (§4)
@@ -164,6 +162,18 @@ export async function handleModeration(message) {
       await bestrafen(message, 'Negativität');
       return void (await reply(message, '⚠️ Verwarnung wegen Negativität. Bitte positiv formulieren. Zum Beispiel: „nicht" → „sehr wohl nicht".'));
     }
+    if (RAM_DIEBSTAHL.aktiv && chance(RAM_DIEBSTAHL.chance)) {
+      const gb = pick([1, 2, 4, 8, 16, 32]);
+      g.ram ??= { total: 0, users: {} };
+      g.ram.total += gb;
+      g.ram.users[message.author.id] = (g.ram.users[message.author.id] ?? 0) + gb;
+      save();
+      message.react('💾').catch(() => {});
+      return void (await reply(
+        message,
+        `💾 **${RAM_DIEBSTAHL.dieb} hat dir gerade ${gb} GB RAM geklaut.** Deine nächsten Nachrichten könnten etwas langsamer sein. (Kontostand: \`/ram\`)`,
+      ));
+    }
     if (chance(0.007)) {
       return void (await reply(message, '🚔 **Routinekontrolle!** Bitte bleib ruhig und lass die Hände auf der Tastatur. … … Alles in Ordnung, du darfst weiterschreiben.'));
     }
@@ -171,6 +181,26 @@ export async function handleModeration(message) {
   } catch (err) {
     logError('moderation', err);
   }
+}
+
+/** Embed für /ram: wie viel RAM wurde dir schon geklaut? */
+export function ramEmbed(guild, user) {
+  const ram = guildState(guild.id).ram ?? { total: 0, users: {} };
+  const mine = ram.users[user.id] ?? 0;
+  const top = Object.entries(ram.users)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, gb], i) => `${['🥇', '🥈', '🥉', '4.', '5.'][i]} <@${id}> – ${gb} GB`);
+  return new EmbedBuilder()
+    .setColor(0x2ecc71)
+    .setTitle(`💾 RAM-Konto: ${user.username}`)
+    .setDescription(
+      `**${user.username}** wurden bisher **${mine} GB RAM** geklaut.\n` +
+        `Auf dem ganzen Server: **${ram.total} GB**.\n` +
+        `Zurückgegeben von ${RAM_DIEBSTAHL.dieb}: **0 GB**.\n\n` +
+        `**Die größten Opfer:**\n${top.join('\n') || '_Noch niemand. Noch._'}`,
+    )
+    .setFooter({ text: 'Aktueller RAM-Preis: 💸💸💸💸💸' });
 }
 
 /** Embed für /strafregister. */

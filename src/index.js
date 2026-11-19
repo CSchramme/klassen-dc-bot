@@ -8,7 +8,7 @@ import { handleRules, rulesPage } from './features/rules.js';
 import { handleCaptcha } from './features/captcha.js';
 import { handleLottery } from './features/lottery.js';
 import { handleTicket, handleTicketMessage } from './features/tickets.js';
-import { handleModeration, strafregisterEmbed } from './features/moderation.js';
+import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moderation.js';
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
 import { handleSetupButton, handleSetupCommand } from './features/setup.js';
@@ -114,6 +114,11 @@ async function handleCommand(interaction) {
     case 'strafregister': {
       const user = interaction.options.getUser('nutzer') ?? interaction.user;
       return interaction.reply({ embeds: [strafregisterEmbed(interaction.guild, user)] });
+    }
+
+    case 'ram': {
+      const user = interaction.options.getUser('nutzer') ?? interaction.user;
+      return interaction.reply({ embeds: [ramEmbed(interaction.guild, user)], allowedMentions: { parse: [] } });
     }
 
     case 'regeln':

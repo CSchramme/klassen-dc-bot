@@ -5,13 +5,13 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | Feature | Was passiert |
 |---|---|
 | 🏗️ **Chaos-Serveraufbau** | `/setup` baut 17 Kategorien mit über 50 Kanälen. Die Sprachkanäle heißen „Textkanäle“, „GANZ OBEN“ ist ganz unten, es gibt `#allgemein`, `#allgemein-2`, `#allgemein-final` und `#𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3`, und der „Schnell-Chat“ hat 6 Stunden Slowmode. |
-| 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe. Liegen in `assets/icons/`. |
+| 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. |
 | 📜 **Regeln + sinnloses Captcha** | Neue Leute sehen nur den „Hintereingang“. Sie müssen 6 Regelseiten durchblättern und dann ein 8-stufiges Captcha lösen: Roboter-Frage, Ampel-Raster, Quatsch-Mathe, Rückwärts-Schreiben, Lieblings-Primzahl, Ladebalken mit 99 %, Bestätigung der Bestätigung und ein zufälliges „Captcha fehlgeschlagen (Mondphase)“ mit Einspruch. |
 | 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers**. |
 | 🎫 **Gerd-Ticketsystem** | Tickets beantwortet „Gerd“ (über Claude), maximal unmotiviert: „Und deswegen machst du ein Ticket?“ Bei ernsten Themen hört der Spaß auf (siehe unten). |
 | 👮 **Quatsch-Moderation** | Gänse sind verboten (Nachricht weg, 30 s Timeout). Wer „Erster“ schreibt, wird Zweiter. Enten in `#nicht-enten` werden umgesiedelt, Buchstaben in `#mathe-nur-mit-zahlen` gelöscht. Dazu Routinekontrollen, ein Strafregister und eine `#🚨-polizeiwache`. |
 | 📜 **Team-Kodex** | Todernste Richtlinie (Aktenzeichen OA-27b/6) darüber, wie dumm das Team schreiben muss. Der Bot ermahnt Teammitglieder, die einen Punkt ans Satzende setzen. |
-| 🐏 **Insider** | „RAM Altmann“ ist schon drin. Eigene Insider kommen in `src/insider.js`. |
+| 💾 **Insider: RAM Altman** | Der OpenAI-Chef, der allen den RAM klaut. Schreibt jemand „RAM“, „ChatGPT“ oder „Arbeitsspeicher“, kommt eine Reaktion. Ab und zu klaut RAM Altman jemandem ein paar GB (Kontostand mit `/ram`). Dazu gibt es Captcha-Fragen, Gerd-Sprüche und ein eigenes Server-Icon. Eigene Insider kommen in `src/insider.js`. |
 | ✏️ **Name & Logo ändern** | Servername, Server-Logo, Bot-Spitzname, Bot-Name und Bot-Avatar per Befehl ändern, plus Namens-Roulette alle 6 Stunden. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
@@ -91,19 +91,23 @@ Danach:
 | `/strafregister [nutzer]` | alle | Zeigt die Akte |
 | `/regeln` | alle | Regeln anzeigen |
 | `/insider` | alle | Zufälliger Insider |
+| `/ram [nutzer]` | alle | Wie viel RAM hat RAM Altman dir schon geklaut? (mit Bestenliste) |
 
 ---
 
-## 🐏 Insider eintragen
+## 💾 Insider eintragen
 
-In `src/insider.js` stehen die Insider. „RAM Altmann“ ist schon drin. Für jeden Insider kannst du festlegen:
-- **Trigger-Wörter:** Schreibt jemand das, reagiert der Bot.
-- **Reaktionen:** zufällige Sprüche.
+In `src/insider.js` stehen die Insider. „RAM Altman“ ist schon drin. Für jeden Insider kannst du festlegen:
+- **Trigger-Wörter:** Schreibt jemand das, reagiert der Bot. Das geht auch als ganzes Wort, z. B. `/\bram\b/i`, damit „Programm“ nicht zählt.
+- **Reaktionen:** zufällige Sprüche im Chat.
+- **Beschreibung:** erklärt Gerd (Claude) den Witz.
+- **Gerd-Sprüche:** für Gerd ohne Claude.
+- **Servernamen:** fürs Namens-Roulette.
 - **Captcha-Fragen** und **Bot-Status**.
 
-Gerd streut die Insider auch ab und zu in Tickets ein. Danach den Bot neu starten.
+Den RAM-Diebstahl stellst du unter `RAM_DIEBSTAHL` ein (Chance pro Nachricht, Standard 1,5 %). Nach Änderungen den Bot neu starten.
 
-Bitte nett bleiben: Insider sind Running Gags, keine Lästereien über echte Personen (auch nicht über Lehrkräfte).
+Bitte nett bleiben: Insider sind Running Gags, keine Lästereien.
 
 ---
 

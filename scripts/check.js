@@ -18,7 +18,7 @@ const { startMessage, rulesPage, allRulesMessage } = await import('../src/featur
 const { startCaptcha, handleCaptcha } = await import('../src/features/captcha.js');
 const { lotteryMessage } = await import('../src/features/lottery.js');
 const { ticketPanelMessage } = await import('../src/features/tickets.js');
-const { handleModeration, strafregisterEmbed } = await import('../src/features/moderation.js');
+const { handleModeration, ramEmbed, strafregisterEmbed } = await import('../src/features/moderation.js');
 const { overwrites } = await import('../src/features/setup.js');
 const { randomServerName, randomIconFile } = await import('../src/features/server.js');
 const { guildState } = await import('../src/storage.js');
@@ -214,14 +214,20 @@ async function simulateModeration() {
   assert.ok(events.some((e) => e[0] === 'reply' && /Zweiter/.test(e[1])));
 
   events.length = 0;
-  await handleModeration(mk('ram altmann ist da'));
-  assert.ok(events.some((e) => e[0] === 'react'));
+  await handleModeration(mk('mein pc hat zu wenig RAM'));
+  assert.ok(events.some((e) => e[0] === 'react' && e[1] === '💾'), 'RAM Altman hat nicht reagiert');
+  events.length = 0;
+  await handleModeration(mk('ChatGPT hat meine Hausaufgaben gemacht', 'anderer-kanal'));
+  assert.ok(events.some((e) => e[0] === 'react' && e[1] === '💾'), 'ChatGPT-Trigger fehlt');
+  const { findInsider } = await import('../src/insider.js');
+  assert.equal(findInsider('Das Programm ist ein Gramm schwer'), null, 'RAM-Trigger zu empfindlich');
 
   events.length = 0;
   await handleModeration(mk('abc 12', 'mathe'));
   assert.ok(events.some((e) => e[0] === 'delete'), 'Buchstaben im Mathe-Kanal nicht gelöscht');
 
   serialize({ embeds: [strafregisterEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
+  serialize({ embeds: [ramEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
 }
 
 for (const [name, fn] of [

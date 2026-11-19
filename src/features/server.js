@@ -29,7 +29,7 @@ const DUMB_NAMES = [
 ];
 
 export function randomServerName() {
-  const insiderNames = INSIDERS.map((i) => `${i.emoji ?? '⭐'} ${i.name} Fanclub`);
+  const insiderNames = INSIDERS.flatMap((i) => i.servernamen ?? [`${i.emoji ?? '⭐'} ${i.name} Fanclub`]);
   return pick([...DUMB_NAMES, ...insiderNames]).slice(0, 100);
 }
 

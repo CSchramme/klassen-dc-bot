@@ -146,7 +146,37 @@ def frittiert():
     img.save(OUT / "frittiert.png")
 
 
-# 4) Avatar für den Bot (Hausmeister Gerd), zum Hochladen im Developer Portal
+# 4) RAM-Riegel, der traurig ist, weil RAM Altman ihn gleich holt
+def ram():
+    img = Image.new("RGB", (S, S), "#000080")
+    d = ImageDraw.Draw(img)
+    for _ in range(120):  # Sternenhimmel, warum nicht
+        x, y = random.randrange(S), random.randrange(S)
+        d.point((x, y), fill="white")
+    stick = Image.new("RGBA", (440, 150), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(stick)
+    sd.rectangle((0, 0, 439, 120), fill="#0b6b2b", outline="black", width=4)  # Platine
+    for i in range(8):  # Chips
+        sd.rectangle((18 + i * 52, 22, 58 + i * 52, 78), fill="#111111")
+    for i in range(40):  # Goldkontakte
+        sd.rectangle((6 + i * 11, 120, 13 + i * 11, 148), fill="#e6b422")
+    sd.rectangle((210, 120, 226, 150), fill=(0, 0, 0, 0))  # Kerbe
+    stick = stick.rotate(-12, expand=True, resample=Image.BICUBIC)
+    img.paste(stick, (30, 175), stick)
+    googly_eye(d, 190, 255, 34, (0.6, -0.9))
+    googly_eye(d, 300, 240, 26, (-0.7, -0.9))
+    d.arc((200, 280, 300, 340), start=200, end=340, fill="white", width=7)  # trauriger Mund
+    for x, y in [(160, 300), (330, 285)]:  # Tränen
+        d.ellipse((x - 9, y, x + 9, y + 26), fill="#66ccff")
+    title = pixel_text("WO RAM???", 5, "#ff00ff", outline="yellow").rotate(4, expand=True, resample=Image.NEAREST)
+    img.paste(title, (25, 20), title)
+    sub = pixel_text("0 GB frei", 4, "#00ff00", outline="black").rotate(-6, expand=True, resample=Image.NEAREST)
+    img.paste(sub, (110, 410), sub)
+    img = deep_fry(img, rounds=2, quality=10)
+    img.save(OUT / "ram.png")
+
+
+# 5) Avatar für den Bot (Hausmeister Gerd), zum Hochladen im Developer Portal
 def gerd():
     img = Image.new("RGB", (S, S), "#3a7bd5")
     d = ImageDraw.Draw(img)
@@ -172,5 +202,6 @@ if __name__ == "__main__":
     kartoffel()
     ente()
     frittiert()
+    ram()
     gerd()
     print("Fertig:", sorted(p.name for p in OUT.parent.rglob("*.png")))
