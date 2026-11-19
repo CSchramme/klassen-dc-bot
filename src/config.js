@@ -10,6 +10,10 @@ function num(value, fallback) {
 export const config = {
   token: process.env.DISCORD_TOKEN,
 
+  gemini: {
+    model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  },
+
   claude: {
     model: process.env.CLAUDE_MODEL || 'claude-opus-5-5',
     maxRepliesPerTicket: num(process.env.TICKET_MAX_REPLIES, 25),

@@ -1,7 +1,7 @@
 // Ticketsystem mit "Willy", dem unmotiviertesten Support-Mitarbeiter der Welt.
-// Willy antwortet mit Claude (falls ANTHROPIC_API_KEY gesetzt ist), sonst mit vorgefertigten Sprüchen.
+// Willy antwortet mit einer KI (Gemini oder Claude, siehe src/ai.js), sonst mit vorgefertigten Sprüchen.
 // Wichtig: Bei ernsten Themen (Mobbing usw.) hört Willy mit dem Quatsch auf und holt Admins dazu.
-import Anthropic from '@anthropic-ai/sdk';
+// Ernste Nachrichten werden dabei NICHT an die KI geschickt.
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -15,6 +15,7 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { config } from '../config.js';
+import { askAI } from '../ai.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick, sleep, truncate } from '../util.js';
 import { findChannel, findRole } from './roles.js';
@@ -22,23 +23,6 @@ import { INSIDERS, insiderNames, insiderPromptLines } from '../insider.js';
 
 const NO_PINGS = { parse: [] };
 const busyChannels = new Set();
-
-// ---------------------------------------------------------------------------
-// Claude
-// ---------------------------------------------------------------------------
-let anthropic = null;
-let claudeDisabled = false;
-
-function getClaude() {
-  if (claudeDisabled) return null;
-  anthropic ??= new Anthropic();
-  return anthropic;
-}
-
-// Modelle, die serverseitige Fallbacks bei Ablehnungen unterstützen
-const SUPPORTS_FALLBACK = /^claude-(fable-5-[12]|mythos-5-[12]|opus-5(-5)?|sonnet-5-5)$/;
-// Ältere Modelle kennen den effort-Parameter nicht
-const NO_EFFORT = /claude-(haiku-4|sonnet-4-5|opus-4-[01]|3)/;
 
 function systemPrompt() {
   const insiders = insiderNames();
@@ -111,48 +95,6 @@ async function buildHistory(channel, ticket) {
   return history;
 }
 
-/** Fragt Claude. Gibt null zurück, wenn Claude nicht verfügbar ist oder ablehnt. */
-async function askClaude(channel, ticket) {
-  const client = getClaude();
-  if (!client) return null;
-  const model = config.claude.model;
-  const params = {
-    model,
-    max_tokens: 4000,
-    system: systemPrompt(),
-    messages: await buildHistory(channel, ticket),
-  };
-  if (!NO_EFFORT.test(model)) params.output_config = { effort: 'low' };
-  if (SUPPORTS_FALLBACK.test(model)) {
-    params.betas = ['server-side-fallback-2026-07-01'];
-    params.fallbacks = 'default';
-  }
-
-  try {
-    const res = await client.beta.messages.create(params);
-    if (res.stop_reason === 'refusal') return null;
-    const text = res.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim();
-    return text || null;
-  } catch (err) {
-    // Fehlende Zugangsdaten sind kein APIError (das SDK wirft dann einen normalen Error)
-    const noCredentials = !(err instanceof Anthropic.APIError);
-    if (err instanceof Anthropic.AuthenticationError || noCredentials) {
-      // Kein oder falscher API-Key: für den Rest der Laufzeit nur noch Sprüche aus der Dose.
-      claudeDisabled = true;
-      console.warn(`[tickets] Claude deaktiviert (${err.message}). Willy antwortet jetzt mit vorgefertigten Sprüchen.`);
-    } else if (err instanceof Anthropic.RateLimitError) {
-      console.warn('[tickets] Claude Rate-Limit erreicht.');
-    } else {
-      logError('tickets:claude', err);
-    }
-    return null;
-  }
-}
-
 async function alertTeam(channel, ticket) {
   if (ticket.alerted) return;
   ticket.alerted = true;
@@ -177,16 +119,17 @@ async function willyReplies(channel, ticket, triggerText = '') {
   busyChannels.add(channel.id);
   try {
     await channel.sendTyping().catch(() => {});
-    let text = await askClaude(channel, ticket);
-    const seriousByWords = SERIOUS_WORDS.test(`${triggerText} ${ticket.problem} ${ticket.subject}`);
-    let serious = false;
-
-    if (text?.startsWith('[ERNST]')) {
-      serious = true;
-      text = text.replace(/^\[ERNST\]\s*/, '');
+    // Ernste Themen erkennen wir selbst und schicken sie gar nicht erst an die KI
+    let serious = SERIOUS_WORDS.test(triggerText);
+    let text = null;
+    if (!serious) {
+      text = await askAI(systemPrompt(), await buildHistory(channel, ticket));
+      if (text?.startsWith('[ERNST]')) {
+        serious = true;
+        text = text.replace(/^\[ERNST\]\s*/, '');
+      }
     }
     if (!text) {
-      serious = seriousByWords;
       text = serious ? SERIOUS_REPLY : cannedReply();
       await sleep(1500); // Willy tippt langsam
     }
@@ -194,7 +137,7 @@ async function willyReplies(channel, ticket, triggerText = '') {
     ticket.replies = (ticket.replies ?? 0) + 1;
     save();
     await channel.send({ content: truncate(text, 1900), allowedMentions: NO_PINGS });
-    if (serious || seriousByWords) await alertTeam(channel, ticket);
+    if (serious) await alertTeam(channel, ticket);
   } finally {
     busyChannels.delete(channel.id);
   }
@@ -214,7 +157,8 @@ export function ticketPanelMessage() {
             'Hier kannst du ein Ticket erstellen. Es wird von **Willy** bearbeitet.\n' +
             'Willy ist sehr beschäftigt (mit nichts).\n\n' +
             '_Durchschnittliche Bearbeitungszeit: 4–6 Schuljahre._\n\n' +
-            '⚠️ Bei echten Problemen (z. B. Mobbing) wird Willy ernst und holt sofort einen Admin dazu.',
+            '⚠️ Bei echten Problemen (z. B. Mobbing) wird Willy ernst und holt sofort einen Admin dazu.\n\n' +
+            '🤖 Willys Antworten kommen von einer KI. Schreib keine privaten Infos (Adresse, Handynummer, Passwörter) in Tickets.',
         ),
     ],
     components: [
@@ -299,7 +243,7 @@ async function createTicket(interaction) {
           { name: 'Dringlichkeit', value: truncate(urgency || 'keine Angabe', 200), inline: true },
           { name: 'Status', value: '🐌 Wird ignoriert', inline: true },
         )
-        .setFooter({ text: 'Schreib einfach hier rein. Willy antwortet. Leider.' }),
+        .setFooter({ text: 'Schreib einfach hier rein. Willy antwortet. Leider. · Willy ist eine KI: keine privaten Infos!' }),
     ],
     components: [
       new ActionRowBuilder().addComponents(

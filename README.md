@@ -8,7 +8,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. |
 | 📜 **Regeln + sinnloses Captcha** | Neue Leute sehen nur den „Hintereingang“. Sie müssen 6 Regelseiten durchblättern und dann ein 8-stufiges Captcha lösen: Roboter-Frage, Ampel-Raster, Quatsch-Mathe, Rückwärts-Schreiben, Lieblings-Primzahl, Ladebalken mit 99 %, Bestätigung der Bestätigung und ein zufälliges „Captcha fehlgeschlagen (Mondphase)“ mit Einspruch. |
 | 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers**. |
-| 🎫 **Willy-Ticketsystem** | Tickets beantwortet „Willy“ (über Claude), maximal unmotiviert: „Und deswegen machst du ein Ticket?“ Bei ernsten Themen hört der Spaß auf (siehe unten). |
+| 🎫 **Willy-Ticketsystem** | Tickets beantwortet „Willy“ (über eine KI, kostenlos mit Gemini), maximal unmotiviert: „Und deswegen machst du ein Ticket?“ Bei ernsten Themen hört der Spaß auf (siehe unten). |
 | 👮 **Quatsch-Moderation** | Gänse sind verboten (Nachricht weg, 30 s Timeout). Wer „Erster“ schreibt, wird Zweiter. Enten in `#nicht-enten` werden umgesiedelt, Buchstaben in `#mathe-nur-mit-zahlen` gelöscht. Dazu Routinekontrollen, ein Strafregister und eine `#🚨-polizeiwache`. |
 | 📜 **Team-Kodex** | Todernste Richtlinie (Aktenzeichen OA-27b/6) darüber, wie dumm das Team schreiben muss. Der Bot ermahnt Teammitglieder, die einen Punkt ans Satzende setzen. |
 | 💾 **Insider: RAM Altman** | Der OpenAI-Chef, der allen den RAM klaut. Schreibt jemand „RAM“, „ChatGPT“ oder „Arbeitsspeicher“, kommt eine Reaktion. Ab und zu klaut RAM Altman jemandem ein paar GB (Kontostand mit `/ram`). Dazu gibt es Captcha-Fragen, Willy-Sprüche und ein eigenes Server-Icon. Eigene Insider kommen in `src/insider.js`. |
@@ -51,7 +51,7 @@ npm install
 cp .env.example .env
 ```
 
-Trag in `.env` deinen Token bei `DISCORD_TOKEN=` ein. Optional kommt ein Claude-API-Key bei `ANTHROPIC_API_KEY=` dazu (siehe unten). Dann:
+Trag in `.env` deinen Token bei `DISCORD_TOKEN=` ein. Optional kommt ein KI-Key für Willy dazu, kostenlos mit Google Gemini (siehe unten). Dann:
 
 ```bash
 npm start
@@ -100,8 +100,8 @@ Danach:
 In `src/insider.js` stehen die Insider. „RAM Altman“ ist schon drin. Für jeden Insider kannst du festlegen:
 - **Trigger-Wörter:** Schreibt jemand das, reagiert der Bot. Das geht auch als ganzes Wort, z. B. `/\bram\b/i`, damit „Programm“ nicht zählt.
 - **Reaktionen:** zufällige Sprüche im Chat.
-- **Beschreibung:** erklärt Willy (Claude) den Witz.
-- **Willy-Sprüche:** für Willy ohne Claude.
+- **Beschreibung:** erklärt Willys KI den Witz.
+- **Willy-Sprüche:** für Willy ohne KI.
 - **Servernamen:** fürs Namens-Roulette.
 - **Captcha-Fragen** und **Bot-Status**.
 
@@ -111,17 +111,30 @@ Bitte nett bleiben: Insider sind Running Gags, keine Lästereien.
 
 ---
 
-## 🎫 Willy & Claude (optional)
+## 🎫 Willy & KI (optional)
 
-Mit `ANTHROPIC_API_KEY` in der `.env` beantwortet Claude die Tickets als Willy. Ohne Key antwortet Willy mit vorgefertigten Sprüchen. Das funktioniert auch, ist aber weniger lustig.
+Ohne KI antwortet Willy mit vorgefertigten Sprüchen. Mit KI denkt er sich die dummen Antworten selbst aus. Welche KI benutzt wird, hängt davon ab, welcher Key in der `.env` steht.
 
+### Variante 1: Google Gemini (kostenlos)
+1. Auf https://aistudio.google.com/apikey mit einem Google-Konto anmelden und **API-Schlüssel erstellen**. Eine Kreditkarte braucht man dafür nicht.
+2. In die `.env` eintragen: `GEMINI_API_KEY=...`
+3. Bot neu starten. In der Konsole steht dann „🤖 Willy antwortet mit Google Gemini“.
+
+**Bitte vorher lesen:**
+- **Alter:** Laut Googles Bedingungen muss die Person, die den Key erstellt, **mindestens 18** sein. In einer älteren Fassung stand außerdem, dass man die API nicht in Apps nutzen darf, die vermutlich von unter 18-Jährigen benutzt werden. Ob das noch gilt, steht in den aktuellen Bedingungen: https://ai.google.dev/gemini-api/terms. Prüft das, bevor ihr es auf einem Klassenserver mit Minderjährigen nutzt.
+- **Datenschutz:** Im Gratis-Kontingent darf Google die Eingaben zur Verbesserung seiner Produkte verwenden, und Menschen können sie lesen. Deshalb steht im Ticket-Panel ein Hinweis, dass man keine privaten Infos reinschreiben soll. Ernste Nachrichten (z. B. über Mobbing) schickt der Bot gar nicht erst an die KI.
+- **Limits:** Das Gratis-Kontingent erlaubt nur eine begrenzte Zahl Anfragen pro Minute und pro Tag. Ist es aufgebraucht, antwortet Willy so lange mit Sprüchen.
+
+### Variante 2: Claude (kostet Guthaben)
 - **Ein Claude-Abo (Pro/Max auf claude.ai) funktioniert dafür nicht.** Bots brauchen einen API-Key, der getrennt abgerechnet wird.
-- So kommst du an den Key: Auf https://console.anthropic.com anmelden, unter **Billing** Guthaben aufladen (ab 5 $), dann unter **API Keys** einen Key erstellen und in die `.env` eintragen. Danach den Bot neu starten. In der Konsole steht dann „🤖 Willy antwortet mit Claude“.
-- **Kosten** (grob geschätzt): Mit `claude-opus-5-5` kostet eine Willy-Antwort etwa 1 Cent, 5 $ reichen also für ungefähr 500 Antworten. Mit `CLAUDE_MODEL=claude-haiku-5-5` ist es rund 40-mal billiger, die Antworten sind aber etwas weniger witzig.
-- Willy antwortet mit niedrigem Aufwand (`effort: low`), weil er eh nur kurz antwortet.
-- Den Key niemals posten oder auf GitHub hochladen. Die `.env` ist in `.gitignore` und wird deshalb nicht mit hochgeladen.
-- Kostenbremse: Nach `TICKET_MAX_REPLIES` Antworten (Standard 25) hat Willy Feierabend.
-- Wenn Claude eine Antwort ablehnt, versucht die API automatisch ein Ersatzmodell (Server-Side-Fallback). Klappt das auch nicht, kommt ein Spruch aus der Dose.
+- So kommst du an den Key: Auf https://console.anthropic.com anmelden, unter **Billing** Guthaben aufladen (ab 5 $), dann unter **API Keys** einen Key erstellen und als `ANTHROPIC_API_KEY=...` in die `.env` eintragen.
+- **Kosten** (grob geschätzt): Mit `claude-opus-5-5` kostet eine Willy-Antwort etwa 1 Cent, 5 $ reichen also für ungefähr 500 Antworten. Mit `CLAUDE_MODEL=claude-haiku-5-5` ist es rund 40-mal billiger.
+- Wenn Claude eine Antwort ablehnt, versucht die API automatisch ein Ersatzmodell (Server-Side-Fallback).
+
+### Für beide gilt
+- Stehen beide Keys drin, gewinnt Claude.
+- Nach `TICKET_MAX_REPLIES` Antworten (Standard 25) pro Ticket hat Willy Feierabend.
+- Keys niemals posten oder auf GitHub hochladen. Die `.env` ist in `.gitignore` und wird deshalb nicht mit hochgeladen.
 
 ### ⚠️ Ernste Themen
 Willy ist nur für Quatsch da. Wenn in einem Ticket etwas Ernstes steht (Mobbing, Bedrohung, Selbstverletzung, jemandem geht es richtig schlecht):
@@ -130,7 +143,7 @@ Willy ist nur für Quatsch da. Wenn in einem Ticket etwas Ernstes steht (Mobbing
 - pingt den Serverbesitzer und das Team im Ticket,
 - und hält danach den Mund, damit echte Menschen übernehmen.
 
-Das erkennt Claude, und zusätzlich gibt es einen Stichwort-Filter als Sicherheitsnetz.
+Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solche Nachrichten bekommt die KI gar nicht zu sehen. Zusätzlich ist die KI angewiesen, bei ernsten Themen von selbst ernst zu werden.
 
 ---
 
@@ -143,7 +156,8 @@ Das erkennt Claude, und zusätzlich gibt es einen Stichwort-Filter als Sicherhei
 | `CHAOS_MIN_SOUNDS` / `CHAOS_MAX_SOUNDS` | 1 / 4 | Sounds pro Besuch |
 | `CHAOS_DEFAULT_SOUNDS` | true | Discord-Standardsounds nehmen, wenn der Server keine eigenen hat |
 | `MOD_TIMEOUT_SECONDS` | 30 | Timeout für Gans-Erwähnungen (0 = keiner) |
-| `CLAUDE_MODEL` | claude-opus-5-5 | Modell für Willy |
+| `GEMINI_MODEL` | gemini-3.8-flash | Gemini-Modell für Willy |
+| `CLAUDE_MODEL` | claude-opus-5-5 | Claude-Modell für Willy |
 | `TICKET_MAX_REPLIES` | 25 | Max. Willy-Antworten pro Ticket |
 
 ---
