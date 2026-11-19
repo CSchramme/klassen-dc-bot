@@ -24,6 +24,7 @@ const { randomServerName, randomIconFile } = await import('../src/features/serve
 const { guildState } = await import('../src/storage.js');
 const fun = await import('../src/features/fun.js');
 const { SOUNDS, uploadSounds } = await import('../src/features/sounds.js');
+const { FORMS, handleFormular, handleFormularCommand } = await import('../src/features/formulare.js');
 const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
 
@@ -311,6 +312,80 @@ async function simulateSoundUpload() {
   assert.ok(created2.includes('Schulgong') && created2.length === 8, `ersetzen hat ${created2.length} hochgeladen`);
 }
 
+// ---------------------------------------------------------------- Nervige Formulare
+function checkModal(m) {
+  assert.ok(m.title.length <= 45, `Formular-Titel zu lang: ${m.title}`);
+  assert.ok(m.components.length >= 1 && m.components.length <= 5, 'Formular braucht 1–5 Felder');
+  for (const label of m.components) {
+    assert.equal(label.type, 18, 'Feld ohne Label');
+    assert.ok(label.label.length <= 45, `Label zu lang: ${label.label}`);
+    assert.ok(!label.description || label.description.length <= 100, `Beschreibung zu lang: ${label.description}`);
+    const c = label.component;
+    if (c.type === 3) assert.ok(c.options.length >= 1 && c.options.length <= 25 && c.options.every((o) => o.label.length <= 100));
+    if (c.type === 4) assert.ok(!c.min_length || c.min_length <= c.max_length, `${c.custom_id}: min > max`);
+  }
+}
+
+const GOOD = {
+  nachname: 'MUSTERMANN', vorname: 'ylliW', klasse: '10b, 204, beige', ampeln: '7', uhrzeit: '10:15:00,000', dauer: '3,5',
+  bestaetigung: 'Ja, ich bestätige hiermit ausdrücklich', unterschrift: '~~~~~ Tim', ortdatum: 'Hier, morgen', nichts: '',
+  sekunden: '30', winkel: '45', seiten: '3', kopien: '3', zeuge: 'Heinz', schliessen: 'Willy', sicher: 'ganz sicher', feedback: '',
+};
+
+async function fillForm(formKey, answers, { fromPublicMessage = false } = {}) {
+  let modal = null;
+  const log = [];
+  const sent = [];
+  const base = {
+    user: { id: `form-${formKey}` },
+    member: { displayName: 'Tim' },
+    options: { getString: () => formKey },
+    showModal: async (m) => {
+      modal = m.toJSON();
+      checkModal(modal);
+    },
+    reply: async (p) => log.push(['reply', serialize(p)]),
+    update: async (p) => log.push(['update', serialize(p)]),
+    channel: { send: async (p) => sent.push(serialize(p)) },
+  };
+  const fieldsFor = (m) => {
+    const values = {};
+    for (const { component: c } of m.components) {
+      values[c.custom_id] = c.type === 3 ? c.options[0].value : c.value ?? answers[c.custom_id] ?? 'x'.repeat(Math.max(c.min_length ?? 3, 3));
+    }
+    return { getTextInputValue: (id) => values[id], getStringSelectValues: (id) => [values[id]] };
+  };
+  if (fromPublicMessage) await handleFormular(base, 'widerspruch', '2026/123');
+  else await handleFormularCommand(base);
+  const pages = FORMS[formKey === 'formular' && fromPublicMessage ? 'widerspruch' : fromPublicMessage ? 'widerspruch' : formKey].pages.length;
+  for (let page = 0; page < pages; page++) {
+    const fromMsg = page > 0 || fromPublicMessage;
+    await handleFormular({ ...base, fields: fieldsFor(modal), isFromMessage: () => fromMsg }, 'submit', String(page));
+    if (page < pages - 1) await handleFormular(base, 'next');
+  }
+  return { log, sent, modal };
+}
+
+async function simulateFormulare() {
+  for (const key of Object.keys(FORMS).filter((k) => !FORMS[k].hidden)) {
+    // korrekt ausgefüllt -> Bescheid
+    const ok = await fillForm(key, GOOD);
+    assert.equal(ok.sent.length, 1, `${key}: kein Bescheid gepostet`);
+    assert.ok(ok.sent[0].embeds[0].title.startsWith('📨 Bescheid'), `${key}: Bescheid fehlt`);
+    assert.equal(ok.log[0][0], 'reply', `${key}: erste Seite muss eine neue private Nachricht sein`);
+    assert.ok(ok.log.slice(1).every(([t]) => t === 'update'), `${key}: Folgeseiten sollen die private Nachricht aktualisieren`);
+    // falsch ausgefüllt -> Fehlerliste, kein Bescheid
+    const bad = await fillForm(key, { ...GOOD, nachname: 'klein', nichts: 'doch', bestaetigung: 'jo' });
+    assert.equal(bad.sent.length, 0, `${key}: trotz Fehlern Bescheid`);
+    const last = bad.log.at(-1)[1].content;
+    assert.ok(last.includes('ungültig') && last.includes('GROSSBUCHSTABEN') && last.includes('NICHTS'), `${key}: Fehlerliste unvollständig`);
+  }
+  // Widerspruch vom öffentlichen Bescheid aus: darf den Bescheid NICHT überschreiben
+  const w = await fillForm('widerspruch', GOOD, { fromPublicMessage: true });
+  assert.equal(w.log[0][0], 'reply', 'Widerspruch hat den öffentlichen Bescheid überschrieben');
+  assert.equal(w.sent.length, 1);
+}
+
 // ---------------------------------------------------------------- Ticket-Knöpfe und Formular
 async function simulateTicketButtons() {
   const guildId = 'g-ticket';
@@ -334,6 +409,7 @@ async function simulateTicketButtons() {
 }
 
 for (const [name, fn] of [
+  ['Formulare', simulateFormulare],
   ['Sound-Upload', simulateSoundUpload],
   ['Ticket-Knöpfe', simulateTicketButtons],
   ['Captcha-Simulation', simulateCaptcha],

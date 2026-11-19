@@ -16,6 +16,7 @@ import { handleBotCommand, handleServerCommand, initRoulette } from './features/
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents } from './features/events.js';
 import { handleSoundsCommand } from './features/sounds.js';
+import { handleFormular, handleFormularCommand } from './features/formulare.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_TOKEN fehlt. Kopiere .env.example nach .env und trag den Token ein.');
@@ -85,6 +86,9 @@ async function handleCommand(interaction) {
 
     case 'sounds':
       return handleSoundsCommand(interaction);
+
+    case 'formular':
+      return handleFormularCommand(interaction);
 
     case 'server':
       return handleServerCommand(interaction);
@@ -192,6 +196,8 @@ async function handleComponent(interaction) {
       return handleTicket(interaction, action);
     case 'setup':
       return handleSetupButton(interaction, action);
+    case 'form':
+      return handleFormular(interaction, action, arg);
     default:
       return interaction.reply({ content: 'Dieser Knopf ist aus einer anderen Zeit.', flags: MessageFlags.Ephemeral });
   }

@@ -20,6 +20,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🚨 **Feueralarm** | Sirene im Sprachkanal, alle werden auf den Pausenhof verschoben und nach 45 Sekunden zurückgebracht. Kommt selten zufällig (alle 2–7 Tage) oder per `/feueralarm`. |
 | 🎡 **Namens-Roulette** | Nur für Leute, die mitmachen: Jeden Morgen bekommt eine Person für 24 Stunden einen dummen Spitznamen. |
 | 📜 **Zeugnis, Ausreden, Hausaufgaben** | `/zeugnis` (Quatschfächer, bleibt pro Tag gleich), `/ausrede`, `/hausaufgabe`. |
+| 📝 **Nervige Formulare** | `/formular`: mehrseitige Anträge (Toilettengang WC-1, Pausenverlängerung P-7, Fensteröffnung F-12, Hausaufgabenbefreiung HA-0, Antrag auf ein Antragsformular 27b/6). Mit Pflichtangaben wie „Nachname in GROSSBUCHSTABEN“, „Uhrzeit mit Millisekunden“ und „Bitte HIER NICHTS eintragen“. Fehler sieht man erst ganz am Ende, dann geht es von vorne los. Am Ende gibt es einen öffentlichen Bescheid mit Widerspruchsformular. Abbrechen geht nur mit Formular AB-1. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -109,6 +110,7 @@ Danach:
 | `/regeln` | alle | Regeln anzeigen |
 | `/einladung` | alle | Einladungslink für den Server (führt direkt zum Captcha, läuft nie ab) |
 | `/insider` | alle | Zufälliger Insider |
+| `/formular art:<…>` | alle | Einen nervigen Antrag stellen (mehrseitig, mit Bescheid und Widerspruch) |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/zeugnis [nutzer]` | alle | Fake-Zeugnis (pro Person und Tag gleich) |
 | `/ausrede` | alle | Ausrede für vergessene Hausaufgaben |

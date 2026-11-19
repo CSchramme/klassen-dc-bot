@@ -1,5 +1,6 @@
 import { ChannelType, InteractionContextType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
 import { AUTOMATIK } from './features/events.js';
+import { FORM_CHOICES } from './features/formulare.js';
 
 const guildOnly = (b) => b.setContexts(InteractionContextType.Guild);
 
@@ -133,6 +134,19 @@ export const COMMANDS = [
           .addBooleanOption((o) => o.setName('ersetzen').setDescription('Willys Sounds, die schon da sind, durch die neueste Version ersetzen')),
       )
       .addSubcommand((s) => s.setName('liste').setDescription('Welche Sounds hat der Server?')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('formular')
+      .setDescription('Einen Antrag stellen. Mehrseitig. Mit Bescheid. Viel Glück.')
+      .addStringOption((o) =>
+        o
+          .setName('art')
+          .setDescription('Welcher Antrag?')
+          .setRequired(true)
+          .addChoices(...FORM_CHOICES),
+      ),
   ),
 
   guildOnly(new SlashCommandBuilder().setName('vertretungsplan').setDescription('Der heutige Vertretungsplan (ohne Gewähr)')),
