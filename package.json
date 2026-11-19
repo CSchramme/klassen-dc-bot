@@ -1,7 +1,7 @@
 {
   "name": "klassen-dc-bot",
   "version": "1.0.0",
-  "description": "Ein absichtlich dummer Discord-Bot für den Klassenserver: Captcha, Chaos-Serveraufbau, Soundboard-Überfälle, Gerd-Ticketsystem und Quatsch-Moderation.",
+  "description": "Ein absichtlich dummer Discord-Bot für den Klassenserver: Captcha, Chaos-Serveraufbau, Soundboard-Überfälle, Willy-Ticketsystem und Quatsch-Moderation.",
   "type": "module",
   "main": "src/index.js",
   "private": true,

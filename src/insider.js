@@ -4,7 +4,7 @@
 //   - als Reaktion, wenn jemand ein Trigger-Wort im Chat schreibt
 //   - im Captcha (Fragen)
 //   - im Bot-Status und als Servernamen beim Namens-Roulette
-//   - bei Gerd im Ticketsystem (er streut sie ab und zu ein)
+//   - bei Willy im Ticketsystem (er streut sie ab und zu ein)
 //   - beim Befehl /insider
 //
 //  Trigger können normale Wörter sein (kommen irgendwo in der Nachricht vor)
@@ -17,7 +17,7 @@ export const INSIDERS = [
   {
     name: 'RAM Altman',
     emoji: '💾',
-    // Erklärung für Gerd (Claude), damit er den Witz versteht
+    // Erklärung für Willy (Claude), damit er den Witz versteht
     beschreibung:
       'Spitzname für Sam Altman, den Chef von OpenAI, der laut Klassen-Insider den ganzen Arbeitsspeicher (RAM) der Welt klaut ' +
       '(Anspielung darauf, dass RAM wegen der KI-Rechenzentren so teuer geworden ist). Ist jemandes PC langsam oder fehlt RAM, war RAM Altman da.',
@@ -46,8 +46,8 @@ export const INSIDERS = [
       '*leise* … er kommt den RAM holen …',
       'Ich hätte dazu was Kluges gesagt, aber RAM Altman hat meinen Arbeitsspeicher. 🫠',
     ],
-    // Sprüche für Gerd, wenn er ohne Claude antwortet
-    gerd: [
+    // Sprüche für Willy, wenn er ohne Claude antwortet
+    willy: [
       'Dein Problem ist bestimmt zu wenig RAM. Den hat RAM Altman. Ticket geschlossen.',
       'Ich würde dir ja helfen, aber RAM Altman hat meinen Arbeitsspeicher geklaut. Ich kann mir nichts mehr merken. Wer bist du?',
       'Hast du schon versucht, RAM Altman zu fragen, ob du deinen RAM zurückbekommst? Nein? Er sagt eh nein.',
@@ -78,7 +78,7 @@ export const RAM_DIEBSTAHL = { aktiv: true, chance: 0.015, dieb: 'RAM Altman' };
 
 export const insiderNames = () => INSIDERS.map((i) => i.name);
 
-/** Beschreibungen für Gerds Systemprompt. */
+/** Beschreibungen für Willys Systemprompt. */
 export const insiderPromptLines = () => INSIDERS.map((i) => `- ${i.name}${i.beschreibung ? `: ${i.beschreibung}` : ''}`);
 
 /** Prüft, ob ein Insider in einem Text vorkommt. */

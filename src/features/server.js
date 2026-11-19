@@ -8,11 +8,16 @@ import { INSIDERS } from '../insider.js';
 import { SERVER_NAME } from './layout.js';
 
 const ICON_DIR = path.resolve('assets', 'icons');
-const BOT_AVATAR = path.resolve('assets', 'gerd-avatar.png');
+const BOT_AVATAR = path.resolve('assets', 'willy-avatar.png');
 const ROULETTE_EVERY_MS = 6 * 60 * 60 * 1000;
 
 const DUMB_NAMES = [
   SERVER_NAME,
+  '🥔 Klasse (offiziell inoffiziell)',
+  '🧹 Willys Abstellkammer',
+  '📎 Neuer Ordner (2)',
+  '🦆 Gänsefreie Zone e. V.',
+  'Bitte Captcha lösen, um den Namen zu sehen',
   'Klassenchat (der echte) (wirklich)',
   'Klassenchat 2 – Die Rückkehr',
   '🦆 Entenhausen Gesamtschule',
@@ -132,7 +137,7 @@ export async function handleBotCommand(interaction) {
       const problem = checkImage(attachment);
       if (problem) return interaction.editReply(fail(problem));
       await client.user.setAvatar(attachment ? attachment.url : fs.readFileSync(BOT_AVATAR));
-      return interaction.editReply(done('🧑‍🎨 Neuer Avatar', attachment ? 'Ich sehe jetzt so aus. Danke. Glaube ich.' : 'Gerd-Avatar gesetzt. Wunderschön.'));
+      return interaction.editReply(done('🧑‍🎨 Neuer Avatar', attachment ? 'Ich sehe jetzt so aus. Danke. Glaube ich.' : 'Willy-Avatar gesetzt. Wunderschön.'));
     }
 
     if (sub === 'name') {

@@ -1,6 +1,6 @@
-// Ticketsystem mit "Gerd", dem unmotiviertesten Support-Mitarbeiter der Welt.
-// Gerd antwortet mit Claude (falls ANTHROPIC_API_KEY gesetzt ist), sonst mit vorgefertigten Sprüchen.
-// Wichtig: Bei ernsten Themen (Mobbing usw.) hört Gerd mit dem Quatsch auf und holt Admins dazu.
+// Ticketsystem mit "Willy", dem unmotiviertesten Support-Mitarbeiter der Welt.
+// Willy antwortet mit Claude (falls ANTHROPIC_API_KEY gesetzt ist), sonst mit vorgefertigten Sprüchen.
+// Wichtig: Bei ernsten Themen (Mobbing usw.) hört Willy mit dem Quatsch auf und holt Admins dazu.
 import Anthropic from '@anthropic-ai/sdk';
 import {
   ActionRowBuilder,
@@ -42,7 +42,7 @@ const NO_EFFORT = /claude-(haiku-4|sonnet-4-5|opus-4-[01]|3)/;
 
 function systemPrompt() {
   const insiders = insiderNames();
-  return `Du bist "Gerd", der unmotivierteste Support-Mitarbeiter der Welt, und bearbeitest Tickets auf dem Discord-Server einer Schulklasse. Die Leute, die dir schreiben, sind Schülerinnen und Schüler.
+  return `Du bist "Willy", der unmotivierteste Support-Mitarbeiter der Welt, und bearbeitest Tickets auf dem Discord-Server einer Schulklasse. Die Leute, die dir schreiben, sind Schülerinnen und Schüler.
 
 So antwortest du:
 - Kurz: 1 bis 3 Sätze. Deutsch, locker, wie ein genervter Hausmeister kurz vor Feierabend. Keine Überschriften, keine Listen.
@@ -71,13 +71,13 @@ const CANNED = [
   'Die Kaffeemaschine ist kaputt. Dein Ticket muss warten. Wie lange? Ja.',
   'Ich hab dein Ticket ausgedruckt, gelocht und abgeheftet. Mehr kann ich nicht für dich tun.',
   'Wieso schreibst du mir das? Ich bin nur der Hausmeister.',
-  'Das klingt nach einem Problem für Montags-Gerd. Heute ist Freitags-Gerd da.',
+  'Das klingt nach einem Problem für Montags-Willy. Heute ist Freitags-Willy da.',
   'Hm. Hast du es schon mit Ignorieren probiert? Klappt bei mir mit Tickets super.',
   'Mein Kaktus Heinz sagt, das ist kein Notfall. Ich vertraue Heinz.',
 ];
 
 function cannedReply() {
-  const insiderLines = INSIDERS.flatMap((i) => i.gerd ?? [`Da muss erst ${i.name} unterschreiben. Komm nächste Woche wieder.`]);
+  const insiderLines = INSIDERS.flatMap((i) => i.willy ?? [`Da muss erst ${i.name} unterschreiben. Komm nächste Woche wieder.`]);
   if (insiderLines.length && Math.random() < 0.25) return pick(insiderLines);
   return pick(CANNED);
 }
@@ -143,7 +143,7 @@ async function askClaude(channel, ticket) {
     if (err instanceof Anthropic.AuthenticationError || noCredentials) {
       // Kein oder falscher API-Key: für den Rest der Laufzeit nur noch Sprüche aus der Dose.
       claudeDisabled = true;
-      console.warn(`[tickets] Claude deaktiviert (${err.message}). Gerd antwortet jetzt mit vorgefertigten Sprüchen.`);
+      console.warn(`[tickets] Claude deaktiviert (${err.message}). Willy antwortet jetzt mit vorgefertigten Sprüchen.`);
     } else if (err instanceof Anthropic.RateLimitError) {
       console.warn('[tickets] Claude Rate-Limit erreicht.');
     } else {
@@ -171,8 +171,8 @@ async function alertTeam(channel, ticket) {
   });
 }
 
-/** Gerd antwortet im Ticket-Kanal. */
-async function gerdReplies(channel, ticket, triggerText = '') {
+/** Willy antwortet im Ticket-Kanal. */
+async function willyReplies(channel, ticket, triggerText = '') {
   if (busyChannels.has(channel.id)) return;
   busyChannels.add(channel.id);
   try {
@@ -188,7 +188,7 @@ async function gerdReplies(channel, ticket, triggerText = '') {
     if (!text) {
       serious = seriousByWords;
       text = serious ? SERIOUS_REPLY : cannedReply();
-      await sleep(1500); // Gerd tippt langsam
+      await sleep(1500); // Willy tippt langsam
     }
 
     ticket.replies = (ticket.replies ?? 0) + 1;
@@ -211,10 +211,10 @@ export function ticketPanelMessage() {
         .setTitle('🎫 Beschwerdestelle')
         .setDescription(
           'Du hast ein Problem? Wir auch.\n\n' +
-            'Hier kannst du ein Ticket erstellen. Es wird von **Gerd** bearbeitet.\n' +
-            'Gerd ist sehr beschäftigt (mit nichts).\n\n' +
+            'Hier kannst du ein Ticket erstellen. Es wird von **Willy** bearbeitet.\n' +
+            'Willy ist sehr beschäftigt (mit nichts).\n\n' +
             '_Durchschnittliche Bearbeitungszeit: 4–6 Schuljahre._\n\n' +
-            '⚠️ Bei echten Problemen (z. B. Mobbing) wird Gerd ernst und holt sofort einen Admin dazu.',
+            '⚠️ Bei echten Problemen (z. B. Mobbing) wird Willy ernst und holt sofort einen Admin dazu.',
         ),
     ],
     components: [
@@ -299,7 +299,7 @@ async function createTicket(interaction) {
           { name: 'Dringlichkeit', value: truncate(urgency || 'keine Angabe', 200), inline: true },
           { name: 'Status', value: '🐌 Wird ignoriert', inline: true },
         )
-        .setFooter({ text: 'Schreib einfach hier rein. Gerd antwortet. Leider.' }),
+        .setFooter({ text: 'Schreib einfach hier rein. Willy antwortet. Leider.' }),
     ],
     components: [
       new ActionRowBuilder().addComponents(
@@ -311,7 +311,7 @@ async function createTicket(interaction) {
   });
 
   await interaction.editReply(`Ticket erstellt: <#${channel.id}>. Rechne mit nichts.`);
-  gerdReplies(channel, ticket, `${subject} ${problem}`).catch((err) => logError('tickets:first', err));
+  willyReplies(channel, ticket, `${subject} ${problem}`).catch((err) => logError('tickets:first', err));
 }
 
 export async function handleTicket(interaction, action) {
@@ -332,7 +332,7 @@ export async function handleTicket(interaction, action) {
       });
 
     case 'nah':
-      return interaction.update({ content: '✅ Super, Problem gelöst. Das war einfach. Gerd ist stolz auf dich.', components: [] });
+      return interaction.update({ content: '✅ Super, Problem gelöst. Das war einfach. Willy ist stolz auf dich.', components: [] });
 
     case 'really':
       return interaction.showModal(
@@ -376,9 +376,9 @@ export async function handleTicket(interaction, action) {
             .setTitle('📈 Weitergeleitet')
             .setDescription(
               pick([
-                'Dein Ticket wurde an Gerds Vorgesetzten weitergeleitet: **Gerd**. Gerd ist im Urlaub bis 2031.',
+                'Dein Ticket wurde an Willys Vorgesetzten weitergeleitet: **Willy**. Willy ist im Urlaub bis 2031.',
                 'Weitergeleitet an die Geschäftsführung. Die Geschäftsführung ist Heinz, ein Kaktus. Heinz hat keine Meinung.',
-                'Weitergeleitet. Der Vorgesetzte hat es an Gerd zurückgeleitet. Gerd hat es an den Vorgesetzten weitergeleitet. Wir melden uns.',
+                'Weitergeleitet. Der Vorgesetzte hat es an Willy zurückgeleitet. Willy hat es an den Vorgesetzten weitergeleitet. Wir melden uns.',
               ]),
             ),
         ],
@@ -391,7 +391,7 @@ export async function handleTicket(interaction, action) {
       const allowed = ticket.ownerId === interaction.user.id || interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels);
       if (!allowed) return interaction.reply({ content: 'Nur die Person mit dem Ticket (oder ein Admin) darf es schließen.', ...ephemeral });
       return interaction.reply({
-        content: 'Bist du sicher? Gerd hat sich gerade an dich gewöhnt.',
+        content: 'Bist du sicher? Willy hat sich gerade an dich gewöhnt.',
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('ticket:close2').setLabel('Ja, schließen').setStyle(ButtonStyle.Danger),
@@ -411,7 +411,7 @@ export async function handleTicket(interaction, action) {
             .setColor(0x2c3e50)
             .setTitle('🔒 Ticket geschlossen')
             .setDescription(
-              `${pick(['Gerd sagt: „Endlich."', 'Gerd sagt: „Gern geschehen." (Er hat nichts gemacht.)', 'Gerd sagt: „Problem gelöst." (Es ist nicht gelöst.)'])}\n` +
+              `${pick(['Willy sagt: „Endlich."', 'Willy sagt: „Gern geschehen." (Er hat nichts gemacht.)', 'Willy sagt: „Problem gelöst." (Es ist nicht gelöst.)'])}\n` +
                 'Dieser Kanal löscht sich in 10 Sekunden selbst. 💥',
             ),
         ],
@@ -424,7 +424,7 @@ export async function handleTicket(interaction, action) {
     }
 
     default:
-      return interaction.reply({ content: 'Unbekannte Ticket-Aktion. Gerd ist verwirrt. (Noch verwirrter.)', ...ephemeral });
+      return interaction.reply({ content: 'Unbekannte Ticket-Aktion. Willy ist verwirrt. (Noch verwirrter.)', ...ephemeral });
   }
 }
 
@@ -433,8 +433,8 @@ export async function handleTicketMessage(message) {
   const ticket = guildState(message.guild.id).tickets[message.channel.id];
   if (!ticket) return false;
   if (message.author.bot || !message.content) return true;
-  // Gerd redet nur mit der Person, die das Ticket erstellt hat. Wenn Admins schon geholt wurden,
-  // hält Gerd sich raus und lässt die Menschen machen.
+  // Willy redet nur mit der Person, die das Ticket erstellt hat. Wenn Admins schon geholt wurden,
+  // hält Willy sich raus und lässt die Menschen machen.
   if (message.author.id !== ticket.ownerId || ticket.alerted) return true;
 
   if ((ticket.replies ?? 0) >= config.claude.maxRepliesPerTicket) {
@@ -445,11 +445,11 @@ export async function handleTicketMessage(message) {
     } else if (!ticket.limitNotice) {
       ticket.limitNotice = true;
       save();
-      await message.channel.send({ content: 'Gerd hat Feierabend. Für immer. Mach ein neues Ticket auf oder frag einen Menschen.', allowedMentions: NO_PINGS });
+      await message.channel.send({ content: 'Willy hat Feierabend. Für immer. Mach ein neues Ticket auf oder frag einen Menschen.', allowedMentions: NO_PINGS });
     }
     return true;
   }
 
-  await gerdReplies(message.channel, ticket, message.content);
+  await willyReplies(message.channel, ticket, message.content);
   return true;
 }

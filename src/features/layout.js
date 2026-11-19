@@ -7,8 +7,8 @@
 // key: markiert Kanäle, mit denen der Bot etwas Besonderes macht
 // nurLesen: normale Mitglieder können dort nicht schreiben
 
-export const SERVER_NAME = '🥔 Klasse (offiziell inoffiziell)';
-export const BOT_NICKNAME = '🧹 Hausmeister Gerd (Azubi)';
+export const SERVER_NAME = '⏳ Server lädt… 99 %';
+export const BOT_NICKNAME = '🧹 Hausmeister Willy (Azubi)';
 
 export const ROLES = {
   verified: { name: '✅ Verifiziert (vielleicht)', color: 0x57f287 },
@@ -214,7 +214,7 @@ export const RULE_PAGES = [
       '**§6** Diese Regel wurde gelöscht.\n' +
       '**§7** Siehe §6.\n\n' +
       '**§8** Der Bot darf jederzeit deinem Sprachkanal beitreten und Geräusche machen. Widerstand ist zwecklos.\n' +
-      '**§8b** Beschwerden über §8 bitte per Ticket. Tickets werden von Gerd bearbeitet. Gerd bearbeitet keine Tickets.',
+      '**§8b** Beschwerden über §8 bitte per Ticket. Tickets werden von Willy bearbeitet. Willy bearbeitet keine Tickets.',
   },
   {
     title: '§9 – §12: Sonstiges',

@@ -176,8 +176,8 @@ def ram():
     img.save(OUT / "ram.png")
 
 
-# 5) Avatar für den Bot (Hausmeister Gerd), zum Hochladen im Developer Portal
-def gerd():
+# 5) Avatar für den Bot (Hausmeister Willy), zum Hochladen im Developer Portal
+def willy():
     img = Image.new("RGB", (S, S), "#3a7bd5")
     d = ImageDraw.Draw(img)
     d.rectangle((0, 380, S, S), fill="#5b3a29")  # Boden
@@ -192,10 +192,10 @@ def gerd():
     d.polygon([(350, 450), (420, 450), (440, 510), (330, 510)], fill="#e6c35c", outline="black", width=4)
     cup = emoji("☕", 110)
     img.paste(cup, (40, 360), cup)
-    label = pixel_text("GERD", 5, "white", outline="black")
-    img.paste(label, (40, 10), label)
+    label = pixel_text("WILLY", 4, "white", outline="black")  # unten mittig, damit es im runden Avatar sichtbar ist
+    img.paste(label, ((S - label.width) // 2, 385), label)
     img = deep_fry(img, rounds=1, quality=25)
-    img.save(OUT.parent / "gerd-avatar.png")
+    img.save(OUT.parent / "willy-avatar.png")
 
 
 if __name__ == "__main__":
@@ -203,5 +203,5 @@ if __name__ == "__main__":
     ente()
     frittiert()
     ram()
-    gerd()
+    willy()
     print("Fertig:", sorted(p.name for p in OUT.parent.rglob("*.png")))

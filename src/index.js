@@ -170,7 +170,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     else if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) await handleComponent(interaction);
   } catch (err) {
     logError('interaction', err);
-    const msg = { content: '💥 Da ist was schiefgelaufen. Gerd ist informiert. Gerd ist es egal.', flags: MessageFlags.Ephemeral };
+    const msg = { content: '💥 Da ist was schiefgelaufen. Willy ist informiert. Willy ist es egal.', flags: MessageFlags.Ephemeral };
     if (interaction.isRepliable()) {
       (interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg)).catch(() => {});
     }

@@ -72,7 +72,7 @@ export const COMMANDS = [
       .addSubcommand((s) =>
         s
           .setName('avatar')
-          .setDescription('Profilbild des Bots (ohne Bild: Gerd-Avatar)')
+          .setDescription('Profilbild des Bots (ohne Bild: Willy-Avatar)')
           .addAttachmentOption((o) => o.setName('bild').setDescription('Neues Profilbild')),
       )
       .addSubcommand((s) =>
