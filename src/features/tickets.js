@@ -19,6 +19,7 @@ import { config } from '../config.js';
 import { askAI } from '../ai.js';
 import { istPause, pauseText } from './events.js';
 import { lehrerKontext } from './schule.js';
+import { SERIOUS_CHAT_REPLY, SERIOUS_WORDS } from '../ernst.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick, sleep, truncate } from '../util.js';
 import { findChannel, findRole } from './roles.js';
@@ -78,12 +79,7 @@ const SERIOUS_REPLY =
   'Bitte sprich auch mit jemandem, dem du vertraust: Eltern, eine Lehrkraft, die Vertrauenslehrkraft oder die Schulsozialarbeit. ' +
   'Wenn du in Gefahr bist, ruf die 112 an. Die Nummer gegen Kummer (116 111) ist kostenlos und anonym.';
 
-const SERIOUS_WORDS = /(mobb|belästig|bedroh|erpress|schlägt mich|geschlagen|verprügel|ritz|umbring|suizid|selbstmord|nicht mehr leben|will sterben|missbrauch|nacktbild|nacktfoto)/i;
 
-const SERIOUS_CHAT_REPLY =
-  'Hey, das klingt ernst – da hört der Spaß auf. Bitte schreib direkt einem Admin oder mach ein Ticket, dann kümmert sich ein Mensch darum. ' +
-  'Und sprich mit jemandem, dem du vertraust: Eltern, eine Lehrkraft, die Vertrauenslehrkraft oder die Schulsozialarbeit. ' +
-  'Wenn du in Gefahr bist, ruf die 112 an. Die Nummer gegen Kummer (116 111) ist kostenlos und anonym.';
 
 const mentionCooldown = new Map(); // userId -> Zeitstempel
 const busyMentions = new Set(); // channelIds

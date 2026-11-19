@@ -17,7 +17,8 @@ import { handleBotCommand, handleServerCommand, initRoulette } from './features/
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents, istPause, merkeAktiv, pauseText } from './features/events.js';
 import { initVoiceNames } from './features/voicenames.js';
-import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule } from './features/schule.js';
+import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule, lehrerErwaehnt } from './features/schule.js';
+import { startLehrerBots } from './lehrer-bots.js';
 import { handleSoundsCommand } from './features/sounds.js';
 import { handleFormular, handleFormularCommand } from './features/formulare.js';
 
@@ -237,7 +238,8 @@ async function handleComponent(interaction) {
   }
 }
 
-client.on(Events.InteractionCreate, async (interaction) => {
+/** Verarbeitet Befehle und Knöpfe – für Willy und für die Lehrer-Bots (deren Quiz-Knöpfe landen bei ihnen). */
+async function onInteraction(interaction) {
   if (!interaction.inGuild()) return;
   const receivedAfter = Date.now() - interaction.createdTimestamp; // wie spät kam der Klick bei Willy an?
   try {
@@ -261,7 +263,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       (interaction.replied || interaction.deferred ? interaction.followUp(msg) : interaction.reply(msg)).catch(() => {});
     }
   }
-});
+}
+
+client.on(Events.InteractionCreate, onInteraction);
+startLehrerBots(onInteraction);
 
 // ---------------------------------------------------------------------------
 // Nachrichten: erst Tickets, dann Quatsch-Moderation
@@ -272,6 +277,7 @@ client.on(Events.MessageCreate, async (message) => {
     merkeAktiv(message.guild.id, message.author.id);
     if (await handleTicketMessage(message)) return;
     if (await handleSchulNachricht(message)) return;
+    if (await lehrerErwaehnt(message)) return;
     if (await handleMention(message)) return;
     await handleModeration(message);
   } catch (err) {

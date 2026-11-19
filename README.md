@@ -89,6 +89,29 @@ Danach:
 
 ---
 
+## 👩‍🏫 Lehrer:innen als eigene Bots (optional)
+
+Normalerweise schreiben die Lehrkräfte über Webhooks (eigener Name und Bild, aber keine echten Mitglieder). Mit eigenen Bots
+sind sie richtige Mitglieder: Sie stehen in der Mitgliederliste, sind online, und man kann sie erwähnen (@Frau Dr. Bruchrechnung),
+dann antworten sie per KI in ihrer Rolle. Alle laufen im selben Programm wie Willy.
+
+Du brauchst **bis zu 6 Bots** (einen pro Fach). Fehlt einer, schreibt diese Lehrkraft weiter per Webhook.
+
+| Fach | Name im Developer Portal | Eintrag in der `.env` |
+|---|---|---|
+| 🧮 Mathe | Frau Dr. Bruchrechnung | `LEHRER_MATHE_TOKEN=` |
+| 📖 Deutsch | Herr Kommasetzung | `LEHRER_DEUTSCH_TOKEN=` |
+| ☕ Englisch | Mr. Overhead | `LEHRER_ENGLISCH_TOKEN=` |
+| 🌱 Bio | Frau Photosynthese | `LEHRER_BIO_TOKEN=` |
+| 🏛️ Geschichte | Herr Damals | `LEHRER_GESCHICHTE_TOKEN=` |
+| 📣 Sport | Coach Pfeife | `LEHRER_SPORT_TOKEN=` |
+
+Pro Bot:
+1. https://discord.com/developers/applications → **New Application** → Name aus der Tabelle.
+2. Links **Bot** → **Reset Token** → Token in die `.env` eintragen. (Keine Privileged Intents nötig.)
+3. Bot neu starten. Willy stellt Name, Profilbild, Spitznamen und Status („📚 Unterrichtet Mathe“) automatisch ein.
+4. **`/schule lehrer`** zeigt die Einladungslinks. Einladen, fertig. Willy gibt der Lehrkraft dann selbst Zugang zu ihrem Fachraum.
+
 ## 💬 Befehle
 
 | Befehl | Wer | Was |
@@ -117,6 +140,7 @@ Danach:
 | `/ki test` | Server verwalten | Stellt der KI eine Testfrage und zeigt pro Modell, was passiert (Fehler, Dauer, Antwort) |
 | `/formular art:<…>` | alle | Einen nervigen Antrag stellen (mehrseitig, mit Bescheid und Widerspruch) |
 | `/schule einrichten` | Admin | Schul-Spiel einrichten (Fachräume, Lehrer:innen, Klassenbuch, Nachsitz-Raum) |
+| `/schule lehrer` | Admin | Welche Lehrkräfte sind eigene Bots? (mit Einladungslinks) |
 | `/stundenplan` | alle | Unterricht dieser Woche |
 | `/unterricht starten [fach] / beenden` | Server verwalten | Stunde sofort starten oder abbrechen |
 | `/noten [nutzer]` | alle | Echte Noten aus dem Unterricht |

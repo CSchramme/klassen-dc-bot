@@ -231,7 +231,8 @@ export const COMMANDS = [
       .setName('schule')
       .setDescription('Schul-Spiel einrichten')
       .setDefaultMemberPermissions(P.Administrator)
-      .addSubcommand((s) => s.setName('einrichten').setDescription('Fachräume, Lehrer:innen, Klassenbuch und Nachsitz-Raum anlegen')),
+      .addSubcommand((s) => s.setName('einrichten').setDescription('Fachräume, Lehrer:innen, Klassenbuch und Nachsitz-Raum anlegen'))
+      .addSubcommand((s) => s.setName('lehrer').setDescription('Zeigt, welche Lehrkräfte eigene Bots sind (mit Einladungslinks)')),
   ),
 
   guildOnly(new SlashCommandBuilder().setName('stundenplan').setDescription('Stundenplan dieser Woche')),

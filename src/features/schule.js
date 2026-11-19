@@ -24,6 +24,8 @@ import { findRole } from './roles.js';
 import { humans, raid } from './chaos.js';
 import { automatikAn } from './events.js';
 import { hausaufgabe } from './fun.js';
+import { alleLehrerBots, einladungslink, lehrerBot, tokenFuer } from '../lehrer-bots.js';
+import { SERIOUS_CHAT_REPLY, SERIOUS_WORDS } from '../ernst.js';
 
 const NO_PINGS = { parse: [] };
 const MIN = 60_000;
@@ -65,9 +67,23 @@ const mainChat = (guild) => guild.channels.cache.find((c) => c.type === ChannelT
 // ---------------------------------------------------------------------------
 // Lehrer sprechen lassen (Webhook mit eigenem Namen und Bild)
 // ---------------------------------------------------------------------------
+/** Kanal, wie ihn der Lehrer-Bot sieht (falls es für das Fach einen eigenen Bot gibt und er den Raum sehen darf). */
+function lehrerKanal(guild, fach, channelId = schule(guild.id).ids.raeume?.[fach]) {
+  return (channelId && lehrerBot(fach)?.channels.cache.get(channelId)) || null;
+}
+
 async function lehrerSagt(guild, fach, content) {
   const s = schule(guild.id);
   const f = FAECHER[fach];
+  const eigen = lehrerKanal(guild, fach);
+  if (eigen) {
+    try {
+      await eigen.send({ content: truncate(content, 1900), allowedMentions: NO_PINGS });
+      return;
+    } catch (err) {
+      logError(`schule:lehrerbot:${fach}`, err);
+    }
+  }
   const wh = s.ids.webhooks?.[fach];
   if (wh) {
     try {
@@ -84,26 +100,94 @@ async function lehrerSagt(guild, fach, content) {
     .catch(() => {});
 }
 
-/** Nachrichten mit Knöpfen schickt der Bot selbst, aber mit Lehrer-Name und -Bild im Kopf. */
-function lehrerEmbed(fach) {
-  const f = FAECHER[fach];
-  return new EmbedBuilder().setColor(0x1f4d3a).setAuthor({ name: `${f.lehrer} (${f.name})`, iconURL: 'attachment://lehrer.png' });
-}
+const lehrerEmbed = () => new EmbedBuilder().setColor(0x1f4d3a);
 const lehrerBild = (fach) => new AttachmentBuilder(path.join(AVATARE, FAECHER[fach].avatar), { name: 'lehrer.png' });
+
+/**
+ * Nachricht mit Knöpfen (Anwesenheit, Quiz): vom Lehrer-Bot selbst, sonst von Willy mit Lehrer-Name und -Bild im Kopf.
+ * Knöpfe auf Webhook-Nachrichten gehen nicht zuverlässig, deshalb hier kein Webhook.
+ */
+async function lehrerNachricht(guild, fach, embed, components) {
+  const f = FAECHER[fach];
+  const eigen = lehrerKanal(guild, fach);
+  if (eigen) {
+    try {
+      return await eigen.send({ embeds: [embed], components, allowedMentions: NO_PINGS });
+    } catch (err) {
+      logError(`schule:lehrerbot:${fach}`, err);
+    }
+  }
+  embed.setAuthor({ name: `${f.lehrer} (${f.name})`, iconURL: 'attachment://lehrer.png' });
+  return raumVon(guild, fach).send({ embeds: [embed], files: [lehrerBild(fach)], components, allowedMentions: NO_PINGS });
+}
+
+/** KI-Anweisung für eine Lehrkraft. */
+function lehrerPrompt(fach, imUnterricht) {
+  const f = FAECHER[fach];
+  return (
+    `Du bist "${f.lehrer}", ${f.persona}. ${imUnterricht ? `Du unterrichtest gerade ${f.name}` : `Du bist Lehrkraft für ${f.name}`} in einer Schulklasse auf Discord. ` +
+    'Antworte kurz (1–3 Sätze), lustig, aber freundlich und jugendfrei, und bleib in deiner Rolle. Beleidige niemanden. ' +
+    'Wenn jemand etwas Ernstes schreibt (Mobbing, es geht ihm schlecht), antworte ernst und rate, sich an eine Vertrauensperson oder einen Admin zu wenden.'
+  );
+}
+
+const erwaehnCooldown = new Map();
+
+/** Jemand hat einen Lehrer-Bot erwähnt (oder auf ihn geantwortet): Die Lehrkraft antwortet selbst. */
+export async function lehrerErwaehnt(message) {
+  for (const [fach, bot] of alleLehrerBots()) {
+    const id = bot.user.id;
+    if (!message.mentions.users.has(id) && message.mentions.repliedUser?.id !== id) continue;
+    const f = FAECHER[fach];
+    const kanal = lehrerKanal(message.guild, fach, message.channel.id);
+    if (!kanal) {
+      await message.reply({ content: `📚 ${f.lehrer} kann diesen Raum nicht sehen. Versuch es im Fachraum.`, allowedMentions: { repliedUser: false, parse: [] } }).catch(() => {});
+      return true;
+    }
+    const last = erwaehnCooldown.get(message.author.id) ?? 0;
+    if (Date.now() - last < 15_000) return true;
+    erwaehnCooldown.set(message.author.id, Date.now());
+    const text = message.content.replace(/<@[!&]?\d+>/g, '').trim();
+    const antwort = (content) =>
+      kanal.send({ content: truncate(content, 1900), reply: { messageReference: message.id, failIfNotExists: false }, allowedMentions: { repliedUser: false, parse: [] } });
+    if (SERIOUS_WORDS.test(text)) {
+      await antwort(SERIOUS_CHAT_REPLY);
+      return true;
+    }
+    await kanal.sendTyping().catch(() => {});
+    const name = message.member?.displayName ?? message.author.username;
+    const imUnterricht = lessons.get(message.guild.id)?.fach === fach;
+    let ki = await askAI(lehrerPrompt(fach, imUnterricht), [{ role: 'user', content: `${name}: ${truncate(text || '(hat dich nur erwähnt)', 1500)}` }]);
+    if (ki?.startsWith('[ERNST]')) ki = SERIOUS_CHAT_REPLY;
+    await antwort(ki || pick(['Dazu später mehr. Viel später.', 'Gute Frage. Steht im Buch. Welches Buch? Ja.', 'Bitte melden, nicht reinrufen.']));
+    return true;
+  }
+  return false;
+}
+
+/** Lehrer-Bots brauchen Zugang zu ihrem Fachraum (der ist sonst nur für Verifizierte sichtbar). */
+const zugangGeprueft = new Map(); // `${guild}:${fach}` -> Zeitstempel
+async function lehrerZugang(guild) {
+  for (const [fach, bot] of alleLehrerBots()) {
+    const key = `${guild.id}:${fach}`;
+    if (Date.now() - (zugangGeprueft.get(key) ?? 0) < 10 * MIN) continue;
+    zugangGeprueft.set(key, Date.now());
+    const raum = raumVon(guild, fach);
+    if (!raum || raum.permissionOverwrites.cache.has(bot.user.id)) continue;
+    const mitglied = await guild.members.fetch(bot.user.id).catch(() => null);
+    if (!mitglied) continue; // noch nicht eingeladen
+    await raum.permissionOverwrites
+      .edit(bot.user.id, { ViewChannel: true, SendMessages: true, EmbedLinks: true, AttachFiles: true, ReadMessageHistory: true }, { reason: 'Lehrer-Bot' })
+      .catch((err) => logError('schule:zugang', err));
+    console.log(`🔑 ${FAECHER[fach].lehrer} hat jetzt Zugang zu ${raum.name}.`);
+  }
+}
 
 /** Für Erwähnungen im Fachraum während einer Stunde: der Lehrer antwortet (KI-Persona). */
 export function lehrerKontext(guild, channelId) {
   const lesson = lessons.get(guild.id);
   if (!lesson || lesson.channelId !== channelId) return null;
-  const f = FAECHER[lesson.fach];
-  return {
-    fach: lesson.fach,
-    prompt:
-      `Du bist "${f.lehrer}", ${f.persona}. Du unterrichtest gerade ${f.name} in einer Schulklasse auf Discord. ` +
-      'Antworte kurz (1–3 Sätze), lustig, aber freundlich und jugendfrei, und bleib beim Fach. Beleidige niemanden. ' +
-      'Wenn jemand etwas Ernstes schreibt (Mobbing, es geht ihm schlecht), antworte ernst und rate, sich an eine Vertrauensperson oder einen Admin zu wenden.',
-    sagen: (text) => lehrerSagt(guild, lesson.fach, text),
-  };
+  return { fach: lesson.fach, prompt: lehrerPrompt(lesson.fach, true), sagen: (text) => lehrerSagt(guild, lesson.fach, text) };
 }
 
 // ---------------------------------------------------------------------------
@@ -260,19 +344,18 @@ export async function stundeStarten(guild, fach, nr = null) {
   await mainChat(guild)
     ?.send({ content: `🔔 *Gong* … Der Unterricht beginnt: **${f.emoji} ${f.name}** bei ${f.lehrer} in <#${raum.id}>. Anwesenheitspflicht!`, allowedMentions: NO_PINGS })
     .catch(() => {});
-  await raum.send({
-    embeds: [
-      lehrerEmbed(fach)
-        .setTitle(`🔔 ${nr ? `${nr}. Stunde: ` : ''}${f.name}`)
-        .setDescription(
-          `Guten Tag. Bitte setzen. Wer da ist, drückt **„✋ Anwesend“**.\nWer später als ${ABLAUF.puenktlich / MIN} Minuten kommt, ist zu spät (Klassenbuch!).\n\n` +
-            `Mitarbeit zählt: Wer im Unterricht schreibt, bekommt Punkte. Wer „langweilig“ schreibt, bekommt einen Eintrag.`,
-        )
-        .setFooter({ text: `Die Stunde dauert ${ABLAUF.ende / MIN} Minuten.` }),
-    ],
-    files: [lehrerBild(fach)],
-    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('schule:hier').setLabel('✋ Anwesend').setStyle(ButtonStyle.Success))],
-  });
+  await lehrerNachricht(
+    guild,
+    fach,
+    lehrerEmbed()
+      .setTitle(`🔔 ${nr ? `${nr}. Stunde: ` : ''}${f.name}`)
+      .setDescription(
+        `Guten Tag. Bitte setzen. Wer da ist, drückt **„✋ Anwesend“**.\nWer später als ${ABLAUF.puenktlich / MIN} Minuten kommt, ist zu spät (Klassenbuch!).\n\n` +
+          `Mitarbeit zählt: Wer im Unterricht schreibt, bekommt Punkte. Wer „langweilig“ schreibt, bekommt einen Eintrag.`,
+      )
+      .setFooter({ text: `Die Stunde dauert ${ABLAUF.ende / MIN} Minuten.` }),
+    [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('schule:hier').setLabel('✋ Anwesend').setStyle(ButtonStyle.Success))],
+  );
 
   const at = (ms, fn) => lesson.timers.push(setTimeout(() => fn().catch((err) => logError('schule:ablauf', err)), ms));
   at(ABLAUF.lektion, () => lektion(guild, lesson));
@@ -294,22 +377,20 @@ async function lektion(guild, lesson) {
 
 async function frageStellen(guild, lesson, frage, index) {
   if (lessons.get(guild.id) !== lesson || !frage) return;
-  const raum = raumVon(guild, lesson.fach);
   const optionen = shuffle([frage.a, ...frage.wrong]);
   lesson.frage = { index, richtig: optionen.indexOf(frage.a), optionen, beantwortet: new Set(), richtige: [] };
-  const msg = await raum.send({
-    embeds: [
-      lehrerEmbed(lesson.fach)
-        .setTitle(`❓ Frage ${index + 1} von ${ABLAUF.fragen.length}`)
-        .setDescription(`**${frage.q}**\n\nWer zuerst richtig antwortet: **+2 Punkte**, alle anderen Richtigen: +1. Ihr habt ${ABLAUF.antwortZeit / 1000} Sekunden.`),
-    ],
-    files: [lehrerBild(lesson.fach)],
-    components: [
+  const msg = await lehrerNachricht(
+    guild,
+    lesson.fach,
+    lehrerEmbed()
+      .setTitle(`❓ Frage ${index + 1} von ${ABLAUF.fragen.length}`)
+      .setDescription(`**${frage.q}**\n\nWer zuerst richtig antwortet: **+2 Punkte**, alle anderen Richtigen: +1. Ihr habt ${ABLAUF.antwortZeit / 1000} Sekunden.`),
+    [
       new ActionRowBuilder().addComponents(
         optionen.map((o, i) => new ButtonBuilder().setCustomId(`schule:antwort:${index}:${i}`).setLabel(truncate(o, 80)).setStyle(ButtonStyle.Secondary)),
       ),
     ],
-  });
+  );
   lesson.timers.push(
     setTimeout(async () => {
       const q = lesson.frage;
@@ -606,6 +687,7 @@ function stundenplanEmbed() {
 async function tick(guild) {
   if (!istEingerichtet(guild)) return;
   const s = schule(guild.id);
+  await lehrerZugang(guild);
   // Nachsitzen abgelaufen?
   for (const [userId, n] of Object.entries(s.nachsitzen)) {
     if (Date.now() >= n.bis) await entlassen(guild, userId, 'wurde nach 15 Minuten entlassen. Strafarbeit unvollständig, aber Willy hat Feierabend.');
@@ -646,6 +728,26 @@ export async function handleSchulCommand(interaction) {
 
   switch (interaction.commandName) {
     case 'schule': {
+      if (sub === 'lehrer') {
+        const zeilen = [];
+        for (const [fach, f] of Object.entries(FAECHER)) {
+          const bot = lehrerBot(fach);
+          let status;
+          if (bot) {
+            const drin = await guild.members.fetch(bot.user.id).catch(() => null);
+            status = drin ? `✅ eigener Bot (${bot.user.tag})` : `📨 Bot läuft, aber noch nicht eingeladen: [Einladen](${einladungslink(bot.user.id)})`;
+          } else if (tokenFuer(fach)) {
+            status = '⚠️ Token eingetragen, Bot startet nicht (Token prüfen)';
+          } else {
+            status = `🪝 Webhook (für einen eigenen Bot: \`LEHRER_${fach.toUpperCase()}_TOKEN\` in die .env)`;
+          }
+          zeilen.push(`${f.emoji} **${f.lehrer}** (${f.name}): ${status}`);
+        }
+        return interaction.reply({
+          embeds: [new EmbedBuilder().setColor(0x1f4d3a).setTitle('👩‍🏫 Das Kollegium').setDescription(zeilen.join('\n'))],
+          ...ephemeral,
+        });
+      }
       if (istEingerichtet(guild) && guild.channels.cache.has(s.ids.category)) {
         return interaction.reply({ content: 'Die Schule ist schon eingerichtet. Zweimal einschulen geht nicht.', ...ephemeral });
       }

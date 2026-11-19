@@ -32,3 +32,9 @@ export function guildState(guildId) {
   g.ticketCounter ??= 0;
   return g;
 }
+
+/** Einstellungen, die nicht zu einem Server gehören (z. B. Profile der Lehrer-Bots). */
+export function globalState() {
+  state.global ??= {};
+  return state.global;
+}
