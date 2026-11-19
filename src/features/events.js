@@ -171,6 +171,11 @@ async function autoFeueralarm(guild) {
 // Namens-Roulette (nur für Leute, die mitmachen)
 // ---------------------------------------------------------------------------
 async function namenZuruecksetzen(guild, aktiv) {
+  // Namensschild-Rolle (für Leute, deren Namen ich nicht ändern darf) einfach löschen
+  if (aktiv.roleId) {
+    await guild.roles.delete(aktiv.roleId, 'Namens-Roulette vorbei').catch(() => {});
+    return;
+  }
   const m = await guild.members.fetch(aktiv.userId).catch(() => null);
   // Nur zurücksetzen, wenn der Name noch der vom Roulette ist (sonst hat die Person ihn selbst geändert)
   if (m && m.nickname === aktiv.name) await m.setNickname(aktiv.original ?? null, 'Namens-Roulette vorbei').catch(() => {});
@@ -196,18 +201,33 @@ export async function namensrouletteDrehen(guild) {
       nr.teilnehmer = nr.teilnehmer.filter((x) => x !== id); // nicht mehr auf dem Server
       continue;
     }
-    if (!m.manageable) continue; // z. B. Serverbesitzer: dessen Namen darf kein Bot ändern
-    const original = m.nickname;
     const name = spitzname();
-    try {
-      await m.setNickname(name, 'Namens-Roulette');
-    } catch {
-      continue;
+    const bis = Date.now() + DAY;
+    let hinweis = '';
+    if (m.manageable) {
+      const original = m.nickname;
+      try {
+        await m.setNickname(name, 'Namens-Roulette');
+      } catch {
+        continue;
+      }
+      nr.aktiv = { userId: id, original, name, bis };
+    } else {
+      // Owner (oder Rolle über mir): Den Namen darf kein Bot ändern, also gibt es ein Namensschild als Rolle
+      let role = null;
+      try {
+        role = await guild.roles.create({ name: `🏷️ ${name}`, colors: { primaryColor: 0xf1c40f }, permissions: [], reason: 'Namens-Roulette (Namensschild)' });
+        await m.roles.add(role, 'Namens-Roulette');
+        nr.aktiv = { userId: id, name, roleId: role.id, bis };
+        hinweis = '\n_(Den Namen vom Chef darf ich nicht ändern, deshalb gibt es ein Namensschild.)_';
+      } catch {
+        if (role) await role.delete('Namensschild konnte nicht vergeben werden').catch(() => {});
+        continue;
+      }
     }
-    nr.aktiv = { userId: id, original, name, bis: Date.now() + DAY };
     save();
     await mainChat(guild)
-      ?.send({ content: `🎡 **Namens-Roulette:** <@${id}> heißt ab jetzt 24 Stunden lang **${name}**. Herzlichen Glückwunsch!`, allowedMentions: { users: [id] } })
+      ?.send({ content: `🎡 **Namens-Roulette:** <@${id}> heißt ab jetzt 24 Stunden lang **${name}**. Herzlichen Glückwunsch!${hinweis}`, allowedMentions: { users: [id] } })
       .catch(() => {});
     return `<@${id}> heißt jetzt **${name}**.`;
   }
@@ -352,13 +372,13 @@ export async function handleSpassCommand(interaction) {
 
       if (sub === 'mitmachen') {
         if (nr.teilnehmer.includes(id)) return interaction.reply({ content: 'Du machst schon mit. Mutig.', ...ephemeral });
-        if (!interaction.member.manageable) {
-          return interaction.reply({ content: 'Deinen Namen darf ich leider nicht ändern (du stehst über mir oder bist der Owner). Sorry, Chef.', ...ephemeral });
-        }
         nr.teilnehmer.push(id);
         save();
+        const schild = interaction.member.manageable
+          ? ''
+          : '\n\n🏷️ Deinen Anzeigenamen darf ich nicht ändern (Discord lässt Bots den Namen vom Server-Owner nie ändern, und auch nicht von Leuten, die über mir stehen). Du bekommst stattdessen für 24 Stunden ein **Namensschild als Rolle**.';
         return interaction.reply({
-          content: `🎡 Du machst beim Namens-Roulette mit! Jeden Tag um ${config.spass.namensrouletteUhrzeit} bekommt eine Person für 24 Stunden einen dummen Spitznamen. Aussteigen geht jederzeit mit \`/namensroulette aussteigen\`.`,
+          content: `🎡 Du machst beim Namens-Roulette mit! Jeden Tag um ${config.spass.namensrouletteUhrzeit} bekommt eine Person für 24 Stunden einen dummen Spitznamen. Aussteigen geht jederzeit mit \`/namensroulette aussteigen\`.${schild}`,
           ...ephemeral,
         });
       }
