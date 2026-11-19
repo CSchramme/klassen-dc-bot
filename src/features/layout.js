@@ -11,6 +11,8 @@ export const SERVER_NAME = '⏳ Server lädt… 99 %';
 export const BOT_NICKNAME = '🧹 Hausmeister Willy (Azubi)';
 
 export const ROLES = {
+  owner: { name: '👑 Owner (Chef vom Ganzen)', color: 0xf1c40f },
+  coOwner: { name: '🥈 Co-Owner (fast Chef)', color: 0xbdc3c7 },
   verified: { name: '✅ Verifiziert (vielleicht)', color: 0x57f287 },
   team: { name: '🛡️ Ordnungsamt (Team)', color: 0xe67e22 },
 };

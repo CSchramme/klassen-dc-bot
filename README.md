@@ -69,7 +69,9 @@ Auf dem Discord-Server:
 
 Danach:
 - **Soundboard-Sounds hochladen:** Servereinstellungen → Soundboard. Ohne eigene Sounds nimmt der Bot die Discord-Standardsounds.
+- Du (der Serverbesitzer) bekommst automatisch die Rolle **👑 Owner (Chef vom Ganzen)**. Co-Owner ernennst du mit `/co-owner @name`. Beide Rollen haben Admin-Rechte, also nur an Leute geben, denen du vertraust.
 - Moderator:innen die Rolle **🛡️ Ordnungsamt (Team)** geben. Dann sehen sie den Team-Bereich mit dem Kodex.
+- Wenn `/setup` schon gelaufen ist und nur Rollen fehlen: `/setup nur_rollen:True`. Das legt keine Kanäle doppelt an.
 - Fertig. Neue Leute landen im `#start-hier-vielleicht` und müssen durchs Captcha.
 
 ---
@@ -79,6 +81,8 @@ Danach:
 | Befehl | Wer | Was |
 |---|---|---|
 | `/setup [alles_loeschen] [servername]` | Admin | Baut den dummen Server auf |
+| `/setup nur_rollen:True` | Admin | Legt nur die Rollen an (Owner, Co-Owner, Team …) und sortiert sie, ohne neue Kanäle |
+| `/co-owner <nutzer>` | nur Owner | Ernennt jemanden zum Co-Owner oder setzt ihn wieder ab |
 | `/server name <name>` | Server verwalten | Server umbenennen |
 | `/server icon [bild]` | Server verwalten | Logo ändern (ohne Bild: zufälliges dummes Logo) |
 | `/server zufall` | Server verwalten | Zufälliger dummer Name + zufälliges Logo |

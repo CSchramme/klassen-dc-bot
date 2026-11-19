@@ -12,7 +12,7 @@ import { handleTicket, handleTicketMessage } from './features/tickets.js';
 import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moderation.js';
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
-import { handleSetupButton, handleSetupCommand } from './features/setup.js';
+import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_TOKEN fehlt. Kopiere .env.example nach .env und trag den Token ein.');
@@ -74,6 +74,9 @@ async function handleCommand(interaction) {
   switch (interaction.commandName) {
     case 'setup':
       return handleSetupCommand(interaction);
+
+    case 'co-owner':
+      return handleCoOwnerCommand(interaction);
 
     case 'server':
       return handleServerCommand(interaction);

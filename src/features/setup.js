@@ -66,6 +66,94 @@ async function ensureRole(guild, def, extra = {}) {
   return guild.roles.create({ name: def.name, colors: { primaryColor: def.color }, permissions: [], reason: 'Dummes Setup', ...extra });
 }
 
+/**
+ * Legt alle Rollen an (bzw. benutzt vorhandene), sortiert sie
+ * (Owner > Co-Owner > Team > Verifiziert) und gibt dem Serverbesitzer die Owner-Rolle.
+ */
+async function ensureRoles(guild, log) {
+  const g = guildState(guild.id);
+  const owner = await ensureRole(guild, ROLES.owner, { hoist: true, permissions: [P.Administrator] });
+  const coOwner = await ensureRole(guild, ROLES.coOwner, { hoist: true, permissions: [P.Administrator] });
+  const team = await ensureRole(guild, ROLES.team, {
+    hoist: true,
+    permissions: [P.ManageMessages, P.ModerateMembers, P.MuteMembers, P.MoveMembers],
+  });
+  const verified = await ensureRole(guild, ROLES.verified);
+  for (const r of LOTTERY_ROLES) await ensureRole(guild, r);
+  g.ids.role_owner = owner.id;
+  g.ids.role_coOwner = coOwner.id;
+  g.ids.role_verified = verified.id;
+  g.ids.role_team = team.id;
+  save();
+  log.push(`🎭 ${4 + LOTTERY_ROLES.length} Rollen erstellt (bzw. wiederverwendet)`);
+
+  // Reihenfolge: direkt unter der Bot-Rolle (höher darf der Bot nicht)
+  try {
+    await guild.roles.fetch();
+    const top = guild.members.me.roles.highest.position;
+    const order = [owner, coOwner, team, verified];
+    if (top > order.length) {
+      await guild.roles.setPositions(order.map((role, i) => ({ role: role.id, position: top - 1 - i })));
+      log.push('📶 Rollen sortiert: Owner > Co-Owner > Team > Verifiziert');
+    } else {
+      log.push('⚠️ Rollen nicht sortiert: Schieb meine Rolle in den Servereinstellungen ganz nach oben und mach `/setup nur_rollen:True` nochmal.');
+    }
+  } catch (err) {
+    logError('setup:positions', err);
+    log.push(`⚠️ Rollen konnten nicht sortiert werden (${err.message})`);
+  }
+
+  // Serverbesitzer bekommt die Owner-Rolle
+  try {
+    const ownerMember = await guild.members.fetch(guild.ownerId);
+    if (!ownerMember.roles.cache.has(owner.id)) await ownerMember.roles.add(owner, 'Ist der Owner');
+    log.push(`👑 ${ownerMember.displayName} ist jetzt offiziell Owner`);
+  } catch (err) {
+    logError('setup:owner', err);
+    log.push(`⚠️ Owner-Rolle konnte nicht vergeben werden (${err.message})`);
+  }
+  return { owner, coOwner, team, verified };
+}
+
+/** /co-owner: Nur der Serverbesitzer darf Co-Owner ernennen oder absetzen (die Rolle hat Admin-Rechte). */
+export async function handleCoOwnerCommand(interaction) {
+  const guild = interaction.guild;
+  if (interaction.user.id !== guild.ownerId) {
+    return interaction.reply({ content: '👑 Nur der Owner darf Co-Owner ernennen. Netter Versuch.', flags: MessageFlags.Ephemeral });
+  }
+  const target = interaction.options.getMember('nutzer');
+  if (!target) return interaction.reply({ content: 'Die Person ist nicht auf dem Server.', flags: MessageFlags.Ephemeral });
+  if (target.user.bot) return interaction.reply({ content: 'Bots können nicht Co-Owner werden. Auch ich nicht. Leider.', flags: MessageFlags.Ephemeral });
+
+  const id = guildState(guild.id).ids.role_coOwner;
+  const role = (id && guild.roles.cache.get(id)) || guild.roles.cache.find((r) => r.name === ROLES.coOwner.name);
+  if (!role) {
+    return interaction.reply({ content: 'Die Co-Owner-Rolle gibt es noch nicht. Mach erst `/setup nur_rollen:True`.', flags: MessageFlags.Ephemeral });
+  }
+
+  try {
+    if (target.roles.cache.has(role.id)) {
+      await target.roles.remove(role, `Abgesetzt von ${interaction.user.username}`);
+      return interaction.reply({
+        content: `📉 ${target} ist nicht mehr Co-Owner. Bitte die Krone am Ausgang abgeben.`,
+        allowedMentions: { users: [target.id] },
+      });
+    }
+    await target.roles.add(role, `Ernannt von ${interaction.user.username}`);
+    return interaction.reply({
+      content: `🎉 **Feierliche Ernennung:** ${target} ist jetzt **Co-Owner**! Applaus bitte 👏👏👏
+Eine Rede ist nicht nötig, wird aber erwartet.`,
+      allowedMentions: { users: [target.id] },
+    });
+  } catch (err) {
+    logError('co-owner', err);
+    return interaction.reply({
+      content: `Das hat nicht geklappt (${err.message}). Meine Rolle muss über der Co-Owner-Rolle stehen.`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+}
+
 async function wipeChannels(guild, keepChannelId) {
   let failed = 0;
   // Erst normale Kanäle, dann Kategorien
@@ -99,15 +187,7 @@ async function runSetup(guild, { wipe, name }) {
   for (const key of Object.keys(g.ids)) if (key.startsWith('ch_')) delete g.ids[key];
 
   // 2) Rollen
-  const verified = await ensureRole(guild, ROLES.verified);
-  const team = await ensureRole(guild, ROLES.team, {
-    hoist: true,
-    permissions: [P.ManageMessages, P.ModerateMembers, P.MuteMembers, P.MoveMembers],
-  });
-  for (const r of LOTTERY_ROLES) await ensureRole(guild, r);
-  g.ids.role_verified = verified.id;
-  g.ids.role_team = team.id;
-  log.push(`🎭 ${2 + LOTTERY_ROLES.length} Rollen erstellt (bzw. wiederverwendet)`);
+  const { verified, team } = await ensureRoles(guild, log);
 
   // 3) Kategorien und Kanäle
   const ids = { verified: verified.id, team: team.id };
@@ -220,6 +300,18 @@ export async function handleSetupCommand(interaction) {
   }
   const wipe = interaction.options.getBoolean('alles_loeschen') ?? false;
   const name = interaction.options.getString('servername') ?? SERVER_NAME;
+
+  if (interaction.options.getBoolean('nur_rollen')) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const log = [];
+    try {
+      await ensureRoles(guild, log);
+    } catch (err) {
+      logError('setup:roles', err);
+      log.push(`❌ Abgebrochen: ${err.message}`);
+    }
+    return interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x57f287).setTitle('🎭 Rollen aktualisiert').setDescription(log.join('\n'))] });
+  }
 
   if (wipe) {
     pending.set(interaction.user.id, { name });

@@ -9,7 +9,16 @@ export const COMMANDS = [
       .setDescription('Baut den dümmsten Server der Welt auf (Kanäle, Rollen, Captcha, Icon …)')
       .setDefaultMemberPermissions(P.Administrator)
       .addBooleanOption((o) => o.setName('alles_loeschen').setDescription('Vorher ALLE Kanäle löschen (nur bei neuem/leerem Server!)'))
-      .addStringOption((o) => o.setName('servername').setDescription('Eigener Servername (sonst ein dummer)').setMaxLength(100)),
+      .addStringOption((o) => o.setName('servername').setDescription('Eigener Servername (sonst ein dummer)').setMaxLength(100))
+      .addBooleanOption((o) => o.setName('nur_rollen').setDescription('Nur Rollen anlegen/sortieren (Owner, Co-Owner …), keine Kanäle')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('co-owner')
+      .setDescription('Jemanden zum Co-Owner ernennen oder absetzen (nur für den Owner)')
+      .setDefaultMemberPermissions(P.Administrator)
+      .addUserOption((o) => o.setName('nutzer').setDescription('Wer?').setRequired(true)),
   ),
 
   guildOnly(
