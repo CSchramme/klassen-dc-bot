@@ -57,29 +57,36 @@ async function askGemini(system, history) {
     else contents.push({ role, parts: [{ text: m.content }] });
   }
 
-  try {
-    const res = await gemini.models.generateContent({
-      model: config.gemini.model,
-      contents,
-      config: { systemInstruction: system, maxOutputTokens: 8192 },
-    });
-    return res.text?.trim() || null; // leer = vom Sicherheitsfilter blockiert
-  } catch (err) {
-    if (err instanceof ApiError) {
-      if (err.status === 401 || err.status === 403 || (err.status === 400 && /api key/i.test(err.message))) {
+  // Erst das normale Modell, bei Überlastung ein kleineres Ersatzmodell
+  const models = [...new Set([config.gemini.model, config.gemini.fallbackModel].filter(Boolean))];
+  for (const [i, model] of models.entries()) {
+    const next = models[i + 1];
+    try {
+      const res = await gemini.models.generateContent({
+        model,
+        contents,
+        config: { systemInstruction: system, maxOutputTokens: 8192 },
+      });
+      return res.text?.trim() || null; // leer = vom Sicherheitsfilter blockiert
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : undefined;
+      const weiter = next ? `Probiere ${next}.` : 'Willy nimmt so lange Sprüche.';
+      if (status === 401 || status === 403 || (status === 400 && /api key/i.test(err.message))) {
         disable('Gemini-Key ungültig');
-      } else if (err.status === 429) {
-        console.warn('[ki] Gemini-Gratiskontingent gerade aufgebraucht (zu viele Anfragen). Willy nimmt so lange Sprüche.');
-      } else if (err.status === 404) {
-        console.warn(`[ki] Gemini-Modell "${config.gemini.model}" gibt es nicht (mehr). Trag ein anderes bei GEMINI_MODEL in der .env ein.`);
+        return null;
+      } else if (status === 503 || status === 500) {
+        console.warn(`[ki] Gemini (${model}) ist gerade überlastet. ${weiter}`);
+      } else if (status === 429) {
+        console.warn(`[ki] Gratis-Kontingent für ${model} gerade aufgebraucht. ${weiter}`);
+      } else if (status === 404) {
+        console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr). Trag ein anderes in der .env ein. ${weiter}`);
       } else {
         logError('ki:gemini', err);
+        return null;
       }
-    } else {
-      logError('ki:gemini', err);
     }
-    return null;
   }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

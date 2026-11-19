@@ -94,19 +94,22 @@ async function ensureRoles(guild, log) {
   try {
     await guild.roles.fetch();
     const myRole = guild.members.me.roles.highest;
-    const top = myRole.position;
-    if (top > order.length) {
-      await guild.roles.setPositions(order.map((role, i) => ({ role: role.id, position: top - 1 - i })));
-      log.push('📶 Rollen sortiert: Owner > Co-Owner > Bots > Team > Verifiziert');
-    } else {
+    // Rollen, die schon über mir stehen (z. B. von Hand hochgezogen), kann ich nicht anfassen
+    const blocked = order.filter((r) => r.position >= myRole.position);
+    const movable = order.filter((r) => r.position < myRole.position);
+    if (movable.length && myRole.position > movable.length) {
+      await guild.roles.setPositions(movable.map((role, i) => ({ role: role.id, position: myRole.position - 1 - i })));
+      log.push(`📶 Rollen sortiert: ${movable.map((r) => r.name.split(' ')[1] ?? r.name).join(' > ')}`);
+    } else if (movable.length) {
       log.push(`⚠️ Rollen nicht sortiert: Meine Rolle „${myRole.name}“ steht zu weit unten.`);
     }
     await guild.roles.fetch();
     const higher = guild.roles.cache.filter((r) => r.position > guild.members.me.roles.highest.position && !r.managed);
-    if (higher.size) {
+    if (higher.size || blocked.length) {
       log.push(
-        `⚠️ Über meiner Rolle „${guild.members.me.roles.highest.name}“ stehen noch: ${higher.map((r) => r.name).join(', ')}. ` +
-          'Zieh meine Rolle unter **Servereinstellungen → Rollen** ganz nach oben und führ `/setup nur_rollen:True` nochmal aus.',
+        `⚠️ Über meiner Rolle „${guild.members.me.roles.highest.name}“ stehen: ${higher.map((r) => r.name).join(', ')}. ` +
+          'Die darf ich nicht verschieben oder vergeben. Zieh meine Rolle unter **Servereinstellungen → Rollen** ganz nach oben ' +
+          'und führ `/setup nur_rollen:True` nochmal aus.',
       );
     }
   } catch (err) {

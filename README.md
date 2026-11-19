@@ -183,6 +183,7 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 | `FEUERALARM_TAGE_MIN/MAX` | 2 / 7 | Abstand zwischen zufälligen Feueralarmen |
 | `AKTIV_VON` / `AKTIV_BIS` | 8 / 21 | Zufälliges nur zwischen diesen Uhrzeiten |
 | `GEMINI_MODEL` | gemini-3.8-flash | Gemini-Modell für Willy |
+| `GEMINI_FALLBACK_MODEL` | gemini-flash-lite-latest | Ersatzmodell, wenn das Hauptmodell überlastet ist |
 | `CLAUDE_MODEL` | claude-opus-5-5 | Claude-Modell für Willy |
 | `TICKET_MAX_REPLIES` | 25 | Max. Willy-Antworten pro Ticket |
 

@@ -12,6 +12,8 @@ export const config = {
 
   gemini: {
     model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    // Ersatz, wenn das Hauptmodell überlastet ist (leer lassen = kein Ersatz)
+    fallbackModel: process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-flash-lite-latest',
   },
 
   claude: {
