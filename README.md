@@ -5,7 +5,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | Feature | Was passiert |
 |---|---|
 | 🏗️ **Chaos-Serveraufbau** | `/setup` baut 17 Kategorien mit über 50 Kanälen. Die Sprachkanäle heißen „Textkanäle“, „GANZ OBEN“ ist ganz unten, es gibt `#allgemein`, `#allgemein-2`, `#allgemein-final` und `#𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3`, und der „Schnell-Chat“ hat 6 Stunden Slowmode. |
-| 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. |
+| 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. Ab Boost-Level 1 gibt es **animierte** Versionen (rollende Augen, drehende Ente, weinender RAM, Ladebalken, der bei 99 % hängt) aus `assets/icons-animated/`. |
 | 📜 **Regeln + sinnloses Captcha** | Neue Leute sehen nur den „Hintereingang“. Sie müssen 6 Regelseiten durchblättern und dann ein 8-stufiges Captcha lösen: Roboter-Frage, Ampel-Raster, Quatsch-Mathe, Rückwärts-Schreiben, Lieblings-Primzahl, Ladebalken mit 99 %, Bestätigung der Bestätigung und ein zufälliges „Captcha fehlgeschlagen (Mondphase)“ mit Einspruch. |
 | 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers** (keine Discord-Standardsounds). |
 | 🎵 **Willys eigene Sounds** | 8 selbst erzeugte Sounds (Feueralarm-Sirene, Schulgong, Trommelwirbel, Ladebalken-„Wah wah“, RAM geklaut, Captcha falsch, Willys Besen, Pausenklingel). Willy lädt sie bei `/setup` oder mit `/sounds hochladen` selbst ins Soundboard. |
@@ -92,7 +92,7 @@ Danach:
 | `/setup nur_rollen:True` | Admin | Legt nur die Rollen an (Owner, Co-Owner, Team …) und sortiert sie, ohne neue Kanäle |
 | `/co-owner <nutzer>` | nur Owner | Ernennt jemanden zum Co-Owner oder setzt ihn wieder ab |
 | `/server name <name>` | Server verwalten | Server umbenennen |
-| `/server icon [bild]` | Server verwalten | Logo ändern (ohne Bild: zufälliges dummes Logo) |
+| `/server icon [bild] [animiert]` | Server verwalten | Logo ändern (ohne Bild: zufälliges dummes Logo, ab Boost-Level 1 automatisch animiert) |
 | `/server zufall` | Server verwalten | Zufälliger dummer Name + zufälliges Logo |
 | `/server roulette <an/aus>` | Server verwalten | Alle 6 h ein neuer dummer Servername |
 | `/bot spitzname <name>` | Admin | Spitzname des Bots auf dem Server |
@@ -197,5 +197,6 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 - `npm run check`: Selbsttest ohne Discord. Prüft Layout und Nachrichten-Limits und spielt das Captcha und die Moderation einmal durch.
 - `npm run icons`: Icons neu generieren (braucht Python + Pillow).
 - `python3 scripts/make-sounds.py`: Sounds neu erzeugen (braucht numpy + ffmpeg).
+- `python3 scripts/make-animated-icons.py`: Animierte Logos neu erzeugen (braucht Pillow).
 - Kanäle, Rollen, Regeln und Team-Kodex stehen alle in `src/features/layout.js`.
 - Gespeichert wird in `data/state.json` (Einstellungen, Strafregister, offene Tickets).

@@ -64,7 +64,8 @@ export const COMMANDS = [
         s
           .setName('icon')
           .setDescription('Server-Logo ändern (ohne Bild: zufälliges dummes Logo)')
-          .addAttachmentOption((o) => o.setName('bild').setDescription('Eigenes Bild als Logo')),
+          .addAttachmentOption((o) => o.setName('bild').setDescription('Eigenes Bild als Logo'))
+          .addBooleanOption((o) => o.setName('animiert').setDescription('Animiertes Logo? (geht ab Boost-Level 1, sonst automatisch)')),
       )
       .addSubcommand((s) => s.setName('zufall').setDescription('Zufälliger dummer Name UND zufälliges dummes Logo'))
       .addSubcommand((s) =>

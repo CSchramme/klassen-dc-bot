@@ -1,13 +1,14 @@
 // Servername, Server-Logo, Bot-Name und Bot-Avatar ändern (+ Namens-Roulette).
 import fs from 'node:fs';
 import path from 'node:path';
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { EmbedBuilder, GuildFeature, MessageFlags } from 'discord.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick } from '../util.js';
 import { INSIDERS } from '../insider.js';
 import { SERVER_NAME } from './layout.js';
 
 const ICON_DIR = path.resolve('assets', 'icons');
+const ANIMATED_DIR = path.resolve('assets', 'icons-animated');
 const BOT_AVATAR = path.resolve('assets', 'willy-avatar.png');
 const ROULETTE_EVERY_MS = 6 * 60 * 60 * 1000;
 
@@ -38,15 +39,21 @@ export function randomServerName() {
   return pick([...DUMB_NAMES, ...insiderNames]).slice(0, 100);
 }
 
-export function randomIconFile() {
-  const files = fs.readdirSync(ICON_DIR).filter((f) => /\.(png|jpe?g|gif)$/i.test(f));
-  return path.join(ICON_DIR, pick(files));
+/** Animierte Server-Logos schaltet Discord ab Boost-Level 1 frei. */
+export const canAnimate = (guild) => Boolean(guild.features?.includes(GuildFeature.AnimatedIcon));
+
+export function randomIconFile({ animated = false } = {}) {
+  const dir = animated ? ANIMATED_DIR : ICON_DIR;
+  const files = fs.readdirSync(dir).filter((f) => (animated ? /\.gif$/i : /\.(png|jpe?g)$/i).test(f));
+  return path.join(dir, pick(files));
 }
 
-export async function setDumbIcon(guild) {
-  const file = randomIconFile();
+/** Setzt ein zufälliges dummes Logo. Animiert, wenn der Server das darf (außer animated: false). */
+export async function setDumbIcon(guild, { animated } = {}) {
+  const useAnimated = (animated ?? true) && canAnimate(guild);
+  const file = randomIconFile({ animated: useAnimated });
   await guild.setIcon(fs.readFileSync(file), 'Dummes Icon');
-  return path.basename(file);
+  return `${path.basename(file)}${useAnimated ? ' (animiert ✨)' : ''}`;
 }
 
 /** Alle 6 Stunden zufälliger Servername, wenn /server roulette an ist. */
@@ -94,8 +101,13 @@ export async function handleServerCommand(interaction) {
         await guild.setIcon(attachment.url, `Neues Icon von ${interaction.user.username}`);
         return interaction.editReply(done('🖼️ Neues Server-Logo', 'Dein Bild ist jetzt das Server-Logo. Mutig.'));
       }
-      const file = await setDumbIcon(guild);
-      return interaction.editReply(done('🖼️ Neues Server-Logo', `Zufälliges dummes Logo gesetzt: \`${file}\``));
+      const wantAnimated = interaction.options.getBoolean('animiert');
+      const file = await setDumbIcon(guild, { animated: wantAnimated ?? undefined });
+      const hint =
+        wantAnimated && !canAnimate(guild)
+          ? '\n\n_Animierte Logos gibt es erst ab Boost-Level 1 (2 Server-Boosts). Bis dahin gibt es ein normales._'
+          : '';
+      return interaction.editReply(done('🖼️ Neues Server-Logo', `Zufälliges dummes Logo gesetzt: \`${file}\`${hint}`));
     }
 
     if (sub === 'zufall') {

@@ -107,6 +107,7 @@ check('Befehle', () => {
 check('Server-Zufall', () => {
   assert.ok(randomServerName().length <= 100);
   assert.ok(randomIconFile().endsWith('.png'));
+  assert.ok(randomIconFile({ animated: true }).endsWith('.gif'));
 });
 
 // ---------------------------------------------------------------- Spaß-Generatoren
@@ -264,6 +265,18 @@ async function simulateModeration() {
   serialize({ embeds: [strafregisterEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
   serialize({ embeds: [ramEmbed({ id: guildId }, { id: 'u2', username: 'test' })] });
 }
+
+// ---------------------------------------------------------------- Animierte Logos
+check('Animierte Logos', () => {
+  const dir = 'assets/icons-animated';
+  const gifs = fsMod.readdirSync(dir).filter((f) => f.endsWith('.gif'));
+  assert.ok(gifs.length >= 3, 'zu wenige animierte Logos');
+  for (const f of gifs) {
+    const buf = fsMod.readFileSync(`${dir}/${f}`);
+    assert.ok(buf.length <= 10 * 1024 * 1024, `${f} ist zu groß`);
+    assert.equal(buf.subarray(0, 6).toString(), 'GIF89a', `${f} ist kein GIF`);
+  }
+});
 
 // ---------------------------------------------------------------- Sounds
 check('Sound-Dateien', () => {
