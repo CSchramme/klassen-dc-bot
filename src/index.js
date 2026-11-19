@@ -1,7 +1,7 @@
 import { ActivityType, Client, EmbedBuilder, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { config } from './config.js';
 import { COMMANDS } from './commands.js';
-import { aiStatus, testAI } from './ai.js';
+import { aiProvider, aiStatus, discoverGeminiModels, testAI } from './ai.js';
 import { guildState, save } from './storage.js';
 import { logError, pick } from './util.js';
 import { INSIDERS, INSIDER_STATUS } from './insider.js';
@@ -59,6 +59,11 @@ client.once(Events.ClientReady, async () => {
   console.log(`✅ Eingeloggt als ${client.user.tag}`);
   console.log(`🔗 Einladungslink: https://discord.com/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`);
   console.log(aiStatus());
+  if (aiProvider() === 'gemini') {
+    discoverGeminiModels().then((list) => {
+      if (list.length) console.log(`📋 Gemini-Modelle für deinen Key: ${list.slice(0, 6).join(', ')}`);
+    });
+  }
   for (const guild of client.guilds.cache.values()) await registerCommands(guild);
   rotateStatus();
   setInterval(rotateStatus, 5 * 60 * 1000);

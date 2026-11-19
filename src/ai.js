@@ -19,7 +19,7 @@ export function aiProvider() {
 export function aiStatus() {
   const p = aiProvider();
   if (p === 'claude') return `🤖 Willy antwortet mit Claude (${config.claude.model}).`;
-  if (p === 'gemini') return `🤖 Willy antwortet mit Google Gemini (${config.gemini.model}, kostenloses Kontingent).`;
+  if (p === 'gemini') return `🤖 Willy antwortet mit Google Gemini (kostenloses Kontingent, bevorzugt ${config.gemini.model}).`;
   return '🥫 Kein KI-Key in der .env: Willy antwortet nur mit vorgefertigten Sprüchen.';
 }
 
@@ -45,8 +45,46 @@ export async function askAI(system, history) {
 // ---------------------------------------------------------------------------
 let gemini = null;
 
-/** Hauptmodell + Ersatzmodelle (bei Überlastung), ohne Doppelte. */
-export const geminiModels = () => [...new Set([config.gemini.model, ...config.gemini.fallbackModels].filter(Boolean))];
+// Welche Modelle es gibt, fragt Willy bei Google nach (alle 6 Stunden neu)
+const MISSING = new Set(); // Modelle, die mit "gibt es nicht" geantwortet haben
+let discovered = null;
+let discoveredAt = 0;
+const SKIP_MODELS = /image|tts|audio|live|embed|vision|robotics|computer|native|learnlm|aqa|imagen|veo|gemma|exp-/i;
+
+function rankModel(name) {
+  const version = Number(/gemini-(\d+(?:\.\d+)?)/.exec(name)?.[1] ?? 0);
+  return version * 10 + (/latest$/.test(name) ? 2 : 0) - (/preview/.test(name) ? 3 : 0) - (/lite/.test(name) ? 1 : 0);
+}
+
+/** Holt die Liste der Text-Modelle ("flash"), die dieser Key benutzen darf. Neueste zuerst. */
+export async function discoverGeminiModels({ force = false } = {}) {
+  if (!force && discovered && Date.now() - discoveredAt < 6 * 60 * 60 * 1000) return discovered;
+  gemini ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  try {
+    const pager = await gemini.models.list({ config: { pageSize: 100, queryBase: true, httpOptions: { timeout: 10_000 } } });
+    const names = [];
+    for await (const m of pager) {
+      const name = m.name?.replace(/^models\//, '');
+      if (!name || !m.supportedActions?.includes('generateContent')) continue;
+      if (!/flash/i.test(name) || SKIP_MODELS.test(name)) continue;
+      names.push(name);
+    }
+    discovered = names.sort((a, b) => rankModel(b) - rankModel(a));
+  } catch (err) {
+    console.warn(`[ki] Konnte die Gemini-Modellliste nicht laden (${truncate(String(err.message), 120)}).`);
+    discovered ??= [];
+  }
+  discoveredAt = Date.now();
+  return discovered;
+}
+
+/** Reihenfolge: eingestelltes Modell, eingestellte Ersatzmodelle (falls es sie gibt), dann was Google anbietet. Max. 4. */
+export async function geminiModels() {
+  const found = await discoverGeminiModels();
+  // Hat Google eine Liste geliefert, nur eingestellte Modelle nehmen, die es auch wirklich gibt
+  const configured = [config.gemini.model, ...config.gemini.fallbackModels].filter((m) => m && (!found.length || found.includes(m)));
+  return [...new Set([...configured, ...found])].filter((m) => !MISSING.has(m)).slice(0, 4);
+}
 
 /**
  * Fragt Gemini. trace (optional) sammelt, was bei jedem Versuch passiert ist (für /ki test).
@@ -64,7 +102,7 @@ async function askGemini(system, history, trace = []) {
     else contents.push({ role, parts: [{ text: m.content }] });
   }
 
-  const models = geminiModels();
+  const models = await geminiModels();
   for (const [i, model] of models.entries()) {
     const next = models[i + 1];
     const weiter = next ? `Probiere ${next}.` : 'Willy nimmt so lange Sprüche.';
@@ -96,7 +134,8 @@ async function askGemini(system, history, trace = []) {
       } else if (status === 429) {
         console.warn(`[ki] Gratis-Kontingent für ${model} gerade aufgebraucht. ${weiter}`);
       } else if (status === 404) {
-        console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr). ${weiter}`);
+        MISSING.add(model); // nicht nochmal probieren
+        console.warn(`[ki] Gemini-Modell "${model}" gibt es nicht (mehr), ich lasse es ab jetzt weg. ${weiter}`);
       } else if (/abort|timeout|timed out/i.test(String(err.message)) || ms >= 14_000) {
         console.warn(`[ki] Gemini (${model}) hat nach ${Math.round(ms / 1000)} s nicht geantwortet. ${weiter}`);
       } else {
@@ -120,6 +159,8 @@ export async function testAI() {
   const history = [{ role: 'user', content: 'Test: Mein Stuhl wackelt.' }];
   const system = 'Du bist Willy, ein genervter Hausmeister. Antworte mit einem kurzen Satz auf Deutsch.';
   if (provider === 'gemini') {
+    const found = await discoverGeminiModels({ force: true });
+    lines.push(found.length ? `📋 Für deinen Key verfügbar: ${found.slice(0, 8).map((m) => `\`${m}\``).join(', ')}` : '📋 Modellliste von Google nicht abrufbar.');
     const trace = [];
     const text = await askGemini(system, history, trace);
     for (const t of trace) lines.push(`${t.ok ? '✅' : '❌'} \`${t.model}\` · ${(t.ms / 1000).toFixed(1)} s · ${t.info}`);
