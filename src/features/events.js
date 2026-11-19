@@ -10,6 +10,7 @@ import { humans, raid } from './chaos.js';
 import { strafeEintragen } from './moderation.js';
 import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisDaten, zeugnisEmbed } from './fun.js';
 import { zeugnisPdf } from './zeugnis-pdf.js';
+import { echteNoten } from './schule.js';
 
 const NO_PINGS = { parse: [] };
 const HOUR = 60 * 60 * 1000;
@@ -24,6 +25,7 @@ export const AUTOMATIK = {
   namensroulette: 'Namens-Roulette',
   kaffeepause: 'Willys Kaffeepause (1–2x am Tag)',
   sprachkanal: 'Sprachkanal-Umbenennung (wer allein ist)',
+  unterricht: 'Unterricht nach Stundenplan',
 };
 
 /** Ist eine Automatik-Funktion an? (Standard: an) */
@@ -468,12 +470,12 @@ export async function handleSpassCommand(interaction) {
       const member = interaction.options.getMember('nutzer') ?? interaction.member;
       const user = member.user ?? interaction.user;
       const name = member.displayName ?? user.username;
-      const daten = zeugnisDaten(user.id, name, heute().date);
+      const daten = zeugnisDaten(user.id, name, heute().date, echteNoten(guild.id, user.id));
       const pdf = await zeugnisPdf(daten);
       const datei = `Zeugnis_${name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '') || 'Unbekannt'}.pdf`;
       return interaction.editReply({
         content: `📜 Das Zeugnis für **${escapeMarkdown(name)}** ist da. Bitte ausdrucken und den Eltern zeigen. (Oder lieber nicht.)`,
-        embeds: [zeugnisEmbed(user, name, heute().date)],
+        embeds: [zeugnisEmbed(user, name, heute().date, echteNoten(guild.id, user.id))],
         files: [{ attachment: pdf, name: datei }],
         allowedMentions: NO_PINGS,
       });

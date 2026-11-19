@@ -25,6 +25,8 @@ const { guildState } = await import('../src/storage.js');
 const fun = await import('../src/features/fun.js');
 const { SOUNDS, uploadSounds } = await import('../src/features/sounds.js');
 const { zeugnisPdf } = await import('../src/features/zeugnis-pdf.js');
+const { noteFuer } = await import('../src/features/schule.js');
+const { FAECHER } = await import('../src/features/schule-daten.js');
 const { FORMS, handleFormular, handleFormularCommand } = await import('../src/features/formulare.js');
 const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
@@ -139,6 +141,24 @@ check('Uhrzeit-Helfer', () => {
   assert.equal(t.date, '2026-11-19');
   assert.equal(parseTime('07:15'), 435);
   assert.equal(parseTime('quatsch', 99), 99);
+});
+
+// ---------------------------------------------------------------- Schul-Spiel
+check('Schul-Noten & Fragen', () => {
+  assert.equal(noteFuer({ anwesend: 0, punkte: 0, mitarbeit: 0, zuspaet: 0 }, 3), null, 'nie da = keine Note');
+  assert.equal(noteFuer({ anwesend: 1, punkte: 6, mitarbeit: 3, zuspaet: 0 }, 1).text[0], '1', 'Alles richtig muss eine 1 geben');
+  assert.ok(noteFuer({ anwesend: 1, punkte: 0, mitarbeit: 0, zuspaet: 1 }, 1).value >= 5, 'Nur da + zu spät muss schlecht sein');
+  assert.ok(noteFuer({ anwesend: 1, punkte: 6, mitarbeit: 3, zuspaet: 0 }, 10).value > 1, 'Oft gefehlt muss die Note verschlechtern');
+  for (const [key, f] of Object.entries(FAECHER)) {
+    assert.ok(f.fragen.length >= 3, `${key}: zu wenige Fragen`);
+    assert.ok(f.lehrer.length + f.name.length + 3 <= 80, `${key}: Webhook-Name zu lang`);
+    assert.ok(fsMod.existsSync(`assets/lehrer/${f.avatar}`), `${key}: Avatar fehlt`);
+    for (const q of f.fragen) {
+      assert.equal(q.wrong.length, 3, `${key}: "${q.q}" braucht 3 falsche Antworten`);
+      assert.ok(!q.wrong.includes(q.a), `${key}: "${q.q}" richtige Antwort steht bei den falschen`);
+      assert.ok([q.a, ...q.wrong].every((o) => o.length <= 80), `${key}: Antwort zu lang`);
+    }
+  }
 });
 
 // ---------------------------------------------------------------- Rechte

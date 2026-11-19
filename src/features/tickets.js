@@ -7,6 +7,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
+  escapeMarkdown,
   EmbedBuilder,
   MessageFlags,
   ModalBuilder,
@@ -17,6 +18,7 @@ import {
 import { config } from '../config.js';
 import { askAI } from '../ai.js';
 import { istPause, pauseText } from './events.js';
+import { lehrerKontext } from './schule.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick, sleep, truncate } from '../util.js';
 import { findChannel, findRole } from './roles.js';
@@ -131,9 +133,15 @@ export async function handleMention(message) {
       }
     }
     history.push({ role: 'user', content: `${name}: ${truncate(text || '(hat nur deinen Namen geschrieben)', 1500)}` });
-    let answer = await askAI(systemPrompt('chat'), history);
+    // Im Fachraum während einer Stunde antwortet die Lehrkraft (eigener Name + Bild)
+    const lehrer = lehrerKontext(message.guild, message.channel.id);
+    let answer = await askAI(lehrer?.prompt ?? systemPrompt('chat'), history);
     if (answer?.startsWith('[ERNST]')) answer = SERIOUS_CHAT_REPLY;
-    await reply(answer || cannedReply());
+    if (lehrer) {
+      await lehrer.sagen(`${escapeMarkdown(name)}, ${answer || 'gute Frage. Die beantworten wir nächste Stunde. Oder nie.'}`);
+    } else {
+      await reply(answer || cannedReply());
+    }
   } finally {
     busyMentions.delete(message.channel.id);
   }

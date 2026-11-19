@@ -1,6 +1,7 @@
 import { ChannelType, InteractionContextType, PermissionFlagsBits as P, SlashCommandBuilder } from 'discord.js';
 import { AUTOMATIK } from './features/events.js';
 import { FORM_CHOICES } from './features/formulare.js';
+import { FAECHER } from './features/schule-daten.js';
 
 const guildOnly = (b) => b.setContexts(InteractionContextType.Guild);
 
@@ -222,5 +223,70 @@ export const COMMANDS = [
           .setDescription('Alle aktiven Leute machen automatisch mit (nur mit „Server verwalten“)')
           .addBooleanOption((o) => o.setName('aktiv').setDescription('An oder aus').setRequired(true)),
       ),
+  ),
+
+  // --- Schul-Spiel ---
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('schule')
+      .setDescription('Schul-Spiel einrichten')
+      .setDefaultMemberPermissions(P.Administrator)
+      .addSubcommand((s) => s.setName('einrichten').setDescription('Fachräume, Lehrer:innen, Klassenbuch und Nachsitz-Raum anlegen')),
+  ),
+
+  guildOnly(new SlashCommandBuilder().setName('stundenplan').setDescription('Stundenplan dieser Woche')),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('unterricht')
+      .setDescription('Unterricht von Hand starten oder beenden')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) =>
+        s
+          .setName('starten')
+          .setDescription('Jetzt eine Stunde starten')
+          .addStringOption((o) =>
+            o
+              .setName('fach')
+              .setDescription('Welches Fach? (sonst zufällig)')
+              .addChoices(...Object.entries(FAECHER).map(([value, f]) => ({ name: `${f.emoji} ${f.name} (${f.lehrer})`, value }))),
+          ),
+      )
+      .addSubcommand((s) => s.setName('beenden').setDescription('Laufende Stunde abbrechen')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('noten')
+      .setDescription('Deine echten Noten aus dem Unterricht')
+      .addUserOption((o) => o.setName('nutzer').setDescription('Wessen Noten?')),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('klassenbuch')
+      .setDescription('Das Klassenbuch')
+      .addSubcommand((s) =>
+        s
+          .setName('anzeigen')
+          .setDescription('Einträge ansehen')
+          .addUserOption((o) => o.setName('nutzer').setDescription('Nur von dieser Person')),
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('eintrag')
+          .setDescription('Eintrag machen (nur Team)')
+          .addUserOption((o) => o.setName('nutzer').setDescription('Wer?').setRequired(true))
+          .addStringOption((o) => o.setName('grund').setDescription('Warum?').setRequired(true).setMaxLength(150)),
+      ),
+  ),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('klassensprecher')
+      .setDescription('Klassensprecher:innen-Wahl')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addSubcommand((s) => s.setName('wahl').setDescription('Wahl starten (läuft 24 Stunden)'))
+      .addSubcommand((s) => s.setName('auswerten').setDescription('Wahl jetzt auswerten')),
   ),
 ].map((c) => c.toJSON());

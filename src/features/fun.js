@@ -101,8 +101,11 @@ const VERHALTEN = [
   ['Pausenverhalten', ['ausgezeichnet', 'professionell', 'olympiareif', 'in der Pause am stärksten']],
 ];
 
-/** Alle Zeugnis-Daten für eine Person und einen Tag (immer gleich am selben Tag). */
-export function zeugnisDaten(userId, displayName, dateKey) {
+/**
+ * Alle Zeugnis-Daten für eine Person und einen Tag (immer gleich am selben Tag).
+ * echt (optional): echte Noten aus dem Schul-Spiel ({ noten, fehlstunden, eintraege }) – die ersetzen die Quatschfächer.
+ */
+export function zeugnisDaten(userId, displayName, dateKey, echt = null) {
   const rng = seededRng(`zeugnis:${userId}:${dateKey}`);
   const faecher = [...ZEUGNIS_FAECHER];
   if (hasRam()) faecher.push('RAM verteidigen');
@@ -112,6 +115,10 @@ export function zeugnisDaten(userId, displayName, dateKey) {
       const n = note(rng);
       return { fach: f, ...n, wort: NOTEN_WORTE[Number(n.text[0])] };
     });
+  if (echt?.noten?.length) {
+    // Echte Fächer zuerst, dazu zwei Quatschfächer (muss sein)
+    noten.splice(0, noten.length, ...echt.noten.map((n) => ({ fach: n.fach, text: n.text, value: n.value, wort: n.wort })), ...noten.slice(0, 2));
+  }
   const schnitt = (noten.reduce((a, n) => a + n.value, 0) / noten.length).toFixed(1).replace('.', ',');
   const [jahr, monat] = dateKey.split('-').map(Number);
   const start = monat >= 8 ? jahr : jahr - 1;
@@ -119,10 +126,16 @@ export function zeugnisDaten(userId, displayName, dateKey) {
     name: displayName,
     noten,
     schnitt,
-    versetzung: pickWith(rng, VERSETZUNG),
+    versetzung: echt
+      ? noten.filter((n) => n.value >= 4.5).length >= 2
+        ? 'gefährdet ⚠️ (zu viele Fünfen und Sechsen)'
+        : 'nicht gefährdet ✅'
+      : pickWith(rng, VERSETZUNG),
     bemerkung: pickWith(rng, BEMERKUNGEN).replaceAll('{name}', displayName),
     verhalten: VERHALTEN.map(([k, werte]) => [k, pickWith(rng, werte)]),
-    fehltage: { entschuldigt: Math.floor(rng() * 6), unentschuldigt: 0, gefuehlt: 20 + Math.floor(rng() * 80) },
+    fehltage: echt
+      ? { entschuldigt: 0, unentschuldigt: echt.fehlstunden, gefuehlt: echt.fehlstunden * 3 + 20 }
+      : { entschuldigt: Math.floor(rng() * 6), unentschuldigt: 0, gefuehlt: 20 + Math.floor(rng() * 80) },
     aktenzeichen: `ZG-${jahr}/${String(Math.floor(rng() * 90000) + 10000)}`,
     schuljahr: `${start}/${String(start + 1).slice(2)}`,
     halbjahr: monat >= 2 && monat <= 7 ? 'Jahreszeugnis' : 'Halbjahreszeugnis',
@@ -130,8 +143,8 @@ export function zeugnisDaten(userId, displayName, dateKey) {
   };
 }
 
-export function zeugnisEmbed(user, displayName, dateKey) {
-  const d = zeugnisDaten(user.id, displayName, dateKey);
+export function zeugnisEmbed(user, displayName, dateKey, echt = null) {
+  const d = zeugnisDaten(user.id, displayName, dateKey, echt);
   return new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle(`📜 Zeugnis: ${displayName}`)

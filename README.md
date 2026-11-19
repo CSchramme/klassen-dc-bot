@@ -24,6 +24,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🎤 **Sprachkanal-Umbenennung** | Sitzt jemand 45 Sekunden allein im Sprachkanal, heißt der Kanal z. B. „🦗 Anna und die Grillen“. Kommt jemand dazu, wird er zurückbenannt. |
 | ☕ **Willys Kaffeepause** | 1–2x am Tag macht Willy 10 Minuten Pause. Spaß-Befehle bekommen dann nur „☕ Pause. Noch 7 Minuten.“ (Tickets laufen weiter.) |
 | 🪑 **`/sitzplan`** | Täglicher Sitzplan aus den aktiven Leuten, aufgefüllt mit Enten, Kartoffeln und Heinz dem Kaktus. Wer „Hinterste Reihe“ gezogen hat, sitzt hinten. |
+| 🏫 **Schul-Spiel** | `/schule einrichten` legt 6 Fachräume mit eigenen Lehrer:innen an (z. B. „Frau Dr. Bruchrechnung“ in Mathe, „Coach Pfeife“ in Sport, jeweils mit eigenem Namen und Bild). Mo–Fr laut `/stundenplan` gibt es Unterricht: Gong im Sprachkanal, Anwesenheit per Knopf (zu spät = Klassenbuch), Mini-Lektion per KI, 3 Quizfragen, Mitarbeit zählt, am Ende Hausaufgabe und Pausenklingel. Daraus entstehen **echte Noten** (`/noten`), die auch im PDF-Zeugnis stehen. 3 Klassenbuch-Einträge = **Nachsitzen** (nur noch im Nachsitz-Raum schreiben, bis man 3x „Ich soll im Unterricht nicht stören.“ abgeschrieben hat). Dazu eine **Klassensprecher:innen-Wahl**. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -115,6 +116,12 @@ Danach:
 | `/insider` | alle | Zufälliger Insider |
 | `/ki test` | Server verwalten | Stellt der KI eine Testfrage und zeigt pro Modell, was passiert (Fehler, Dauer, Antwort) |
 | `/formular art:<…>` | alle | Einen nervigen Antrag stellen (mehrseitig, mit Bescheid und Widerspruch) |
+| `/schule einrichten` | Admin | Schul-Spiel einrichten (Fachräume, Lehrer:innen, Klassenbuch, Nachsitz-Raum) |
+| `/stundenplan` | alle | Unterricht dieser Woche |
+| `/unterricht starten [fach] / beenden` | Server verwalten | Stunde sofort starten oder abbrechen |
+| `/noten [nutzer]` | alle | Echte Noten aus dem Unterricht |
+| `/klassenbuch anzeigen [nutzer] / eintrag` | alle / Team | Klassenbuch ansehen bzw. Eintrag machen |
+| `/klassensprecher wahl / auswerten` | Server verwalten | Wahl starten (24 h) bzw. sofort auswerten |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |
@@ -197,6 +204,7 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 | `PUTZEN_STUNDEN_MIN/MAX` | 4 / 10 | Abstand zwischen Putz-Rundgängen |
 | `FEUERALARM_TAGE_MIN/MAX` | 2 / 7 | Abstand zwischen zufälligen Feueralarmen |
 | `AKTIV_VON` / `AKTIV_BIS` | 8 / 21 | Zufälliges nur zwischen diesen Uhrzeiten |
+| `UNTERRICHT_ZEITEN` | 16:00,18:00 | Unterrichtsstunden Mo–Fr (an/aus über `/automatik`) |
 | `GEMINI_MODEL` | gemini-3.8-flash | Gemini-Modell für Willy |
 | `GEMINI_FALLBACK_MODEL` | gemini-flash-latest,gemini-flash-lite-latest | Ersatzmodelle (kommagetrennt), wenn das Hauptmodell überlastet ist |
 | `CLAUDE_MODEL` | claude-opus-5-5 | Claude-Modell für Willy |
@@ -210,5 +218,6 @@ Ein Stichwort-Filter erkennt solche Nachrichten, bevor sie an die KI gehen. Solc
 - `npm run icons`: Icons neu generieren (braucht Python + Pillow).
 - `python3 scripts/make-sounds.py`: Sounds neu erzeugen (braucht numpy + ffmpeg).
 - `python3 scripts/make-animated-icons.py`: Animierte Logos neu erzeugen (braucht Pillow).
+- `python3 scripts/make-teachers.py`: Lehrer-Avatare neu erzeugen. Fächer, Lehrer:innen und Quizfragen stehen in `src/features/schule-daten.js`.
 - Kanäle, Rollen, Regeln und Team-Kodex stehen alle in `src/features/layout.js`.
 - Gespeichert wird in `data/state.json` (Einstellungen, Strafregister, offene Tickets).

@@ -17,6 +17,7 @@ import { handleBotCommand, handleServerCommand, initRoulette } from './features/
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents, istPause, merkeAktiv, pauseText } from './features/events.js';
 import { initVoiceNames } from './features/voicenames.js';
+import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule } from './features/schule.js';
 import { handleSoundsCommand } from './features/sounds.js';
 import { handleFormular, handleFormularCommand } from './features/formulare.js';
 
@@ -77,6 +78,7 @@ client.once(Events.ClientReady, async () => {
   initRoulette(client);
   initEvents(client);
   initVoiceNames(client);
+  initSchule(client);
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommands(guild));
@@ -90,7 +92,7 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
 // Slash-Befehle
 // ---------------------------------------------------------------------------
 // Diese Befehle funktionieren auch während Willys Kaffeepause (Verwaltung)
-const PAUSE_AUSNAHMEN = ['setup', 'automatik', 'kaffeepause', 'ki', 'server', 'bot', 'co-owner', 'chaos', 'moderation', 'sounds'];
+const PAUSE_AUSNAHMEN = ['setup', 'automatik', 'kaffeepause', 'ki', 'server', 'bot', 'co-owner', 'chaos', 'moderation', 'sounds', 'schule', 'unterricht', 'klassensprecher', 'klassenbuch'];
 
 async function handleCommand(interaction) {
   const ephemeral = { flags: MessageFlags.Ephemeral };
@@ -98,6 +100,7 @@ async function handleCommand(interaction) {
     return interaction.reply({ content: pauseText(interaction.guildId), ...ephemeral });
   }
   if (SPASS_COMMANDS.includes(interaction.commandName)) return handleSpassCommand(interaction);
+  if (SCHUL_COMMANDS.includes(interaction.commandName)) return handleSchulCommand(interaction);
   const g = guildState(interaction.guildId);
 
   switch (interaction.commandName) {
@@ -213,7 +216,7 @@ async function handleCommand(interaction) {
 // Knöpfe, Menüs, Formulare
 // ---------------------------------------------------------------------------
 async function handleComponent(interaction) {
-  const [prefix, action, arg] = interaction.customId.split(':');
+  const [prefix, action, arg, arg2] = interaction.customId.split(':');
   switch (prefix) {
     case 'rules':
       return handleRules(interaction, action, arg);
@@ -227,6 +230,8 @@ async function handleComponent(interaction) {
       return handleSetupButton(interaction, action);
     case 'form':
       return handleFormular(interaction, action, arg);
+    case 'schule':
+      return handleSchule(interaction, action, arg, arg2);
     default:
       return interaction.reply({ content: 'Dieser Knopf ist aus einer anderen Zeit.', flags: MessageFlags.Ephemeral });
   }
@@ -266,6 +271,7 @@ client.on(Events.MessageCreate, async (message) => {
   try {
     merkeAktiv(message.guild.id, message.author.id);
     if (await handleTicketMessage(message)) return;
+    if (await handleSchulNachricht(message)) return;
     if (await handleMention(message)) return;
     await handleModeration(message);
   } catch (err) {

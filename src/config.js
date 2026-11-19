@@ -47,6 +47,14 @@ export const config = {
     aktivBis: num(process.env.AKTIV_BIS, 21),
   },
 
+  schule: {
+    // Unterrichtsstunden Mo–Fr (kommagetrennt, Uhrzeit HH:MM)
+    zeiten: (process.env.UNTERRICHT_ZEITEN ?? '16:00,18:00')
+      .split(',')
+      .map((z) => z.trim())
+      .filter(Boolean),
+  },
+
   moderation: {
     timeoutSeconds: num(process.env.MOD_TIMEOUT_SECONDS, 30),
   },
