@@ -1,9 +1,9 @@
 // Zeitgesteuerter Unsinn: Vertretungsplan, Durchsagen, 13:37, Putz-Rundgang, Feueralarm, Namens-Roulette.
 // Dazu die Befehle /vertretungsplan, /zeugnis, /ausrede, /hausaufgabe, /feueralarm, /automatik, /namensroulette.
-import { ChannelType, EmbedBuilder, MessageFlags, PermissionFlagsBits as P, SnowflakeUtil } from 'discord.js';
+import { ActivityType, ChannelType, EmbedBuilder, MessageFlags, PermissionFlagsBits as P, SnowflakeUtil, escapeMarkdown } from 'discord.js';
 import { config } from '../config.js';
 import { guildState, save } from '../storage.js';
-import { localNow, logError, parseTime, randInt, shuffle } from '../util.js';
+import { localNow, logError, parseTime, pick, pickWith, randInt, seededRng, shuffle, shuffleWith, truncate } from '../util.js';
 import { LAYOUT } from './layout.js';
 import { findChannel } from './roles.js';
 import { humans, raid } from './chaos.js';
@@ -20,8 +20,13 @@ export const AUTOMATIK = {
   leet: '13:37-Durchsage',
   putzen: 'Willys Putz-Rundgang',
   feueralarm: 'Zufälliger Feueralarm im Sprachkanal',
-  namensroulette: 'Namens-Roulette (nur wer mitmacht)',
+  namensroulette: 'Namens-Roulette',
+  kaffeepause: 'Willys Kaffeepause (1–2x am Tag)',
+  sprachkanal: 'Sprachkanal-Umbenennung (wer allein ist)',
 };
+
+/** Ist eine Automatik-Funktion an? (Standard: an) */
+export const automatikAn = (guildId, key) => spassState(guildId).automatik[key] !== false;
 
 function spassState(guildId) {
   const g = guildState(guildId);
@@ -284,6 +289,87 @@ export async function namensrouletteDrehen(guild) {
 }
 
 // ---------------------------------------------------------------------------
+// Willys Kaffeepause
+// ---------------------------------------------------------------------------
+const PAUSE_TEXTE = [
+  '☕ Willy macht gerade Kaffeepause (noch {m} Min.). Bitte Formular P-7 ausfüllen oder warten.',
+  '☕ Pause. Die Kaffeemaschine ist gerade wichtiger als du. Noch {m} Minuten.',
+  '☕ *schlürf* … Noch {m} Minuten. Dann vielleicht.',
+  '☕ Willy ist nicht da. Er ist in der Pause. Er kommt in {m} Minuten wieder. Vermutlich.',
+  '☕ Bitte nicht stören. Kaffeepause laut Tarifvertrag. Noch {m} Minuten.',
+];
+
+export const istPause = (guildId) => (spassState(guildId).zeitplan.pauseBis ?? 0) > Date.now();
+
+export function pauseText(guildId) {
+  const m = Math.max(1, Math.ceil(((spassState(guildId).zeitplan.pauseBis ?? 0) - Date.now()) / 60_000));
+  return pick(PAUSE_TEXTE).replace('{m}', String(m));
+}
+
+export async function kaffeepauseStarten(guild, minuten = 10) {
+  const z = spassState(guild.id).zeitplan;
+  z.pauseBis = Date.now() + minuten * 60_000;
+  z.pauseEnde = false;
+  save();
+  guild.client.user.setPresence({ status: 'idle', activities: [{ type: ActivityType.Custom, name: 'custom', state: '☕ Kaffeepause' }] });
+  await mainChat(guild)
+    ?.send({ content: `☕ **Willy macht jetzt ${minuten} Minuten Kaffeepause.** Befehle werden danach wieder bearbeitet. Vielleicht.`, allowedMentions: NO_PINGS })
+    .catch(() => {});
+}
+
+async function kaffeepauseBeenden(guild) {
+  const z = spassState(guild.id).zeitplan;
+  z.pauseBis = 0;
+  z.pauseEnde = true;
+  save();
+  guild.client.user.setPresence({ status: 'online', activities: [{ type: ActivityType.Custom, name: 'custom', state: 'Wieder da. Leider.' }] });
+  await mainChat(guild)?.send({ content: '☕ **Pause vorbei.** Willy arbeitet wieder. Also, er ist wieder da.', allowedMentions: NO_PINGS }).catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Sitzplan (pro Tag gleich)
+// ---------------------------------------------------------------------------
+const FUELLER = ['🦆 eine Ente', '🥔 eine Kartoffel', '🪑 leerer Stuhl', '📽️ Overheadprojektor', '🌵 Heinz (Kaktus)', '🧦 eine Socke', '🎒 herrenloser Rucksack', '👻 der Neue (unsichtbar)'];
+
+async function sitzplanEmbed(guild) {
+  const t = heute();
+  const rng = seededRng(`sitzplan:${guild.id}:${t.date}`);
+  const nr = spassState(guild.id).namensroulette;
+  const ids = Object.entries(nr.gesehen)
+    .filter(([, ts]) => Date.now() - ts < 14 * DAY)
+    .map(([id]) => id)
+    .slice(0, 22);
+  const vorne = [];
+  const hinten = [];
+  for (const id of ids) {
+    const m = guild.members.cache.get(id) ?? (await guild.members.fetch(id).catch(() => null));
+    if (!m || m.user.bot) continue;
+    const name = escapeMarkdown(truncate(m.displayName, 20));
+    // Wer in der Rollen-Lotterie "Hinterste Reihe" gezogen hat, sitzt natürlich hinten
+    (m.roles.cache.some((r) => r.name.includes('Hinterste Reihe')) ? hinten : vorne).push(name);
+  }
+  const plaetze = Math.max(8, Math.ceil((vorne.length + 2) / 4) * 4);
+  const fueller = shuffleWith(rng, FUELLER); // möglichst verschiedene Gegenstände
+  const sitze = shuffleWith(rng, [...vorne, ...Array.from({ length: plaetze - vorne.length }, (_, i) => fueller[i % fueller.length])]);
+  const reihen = [];
+  for (let i = 0; i < sitze.length; i += 4) {
+    const [a, b, c, d] = sitze.slice(i, i + 4);
+    reihen.push(`**Reihe ${reihen.length + 1}:** ${a} · ${b}   ┃   ${c ?? '🪑'} · ${d ?? '🪑'}`);
+  }
+  if (hinten.length) reihen.push(`**Hinterste Reihe:** ${[...hinten, pickWith(rng, FUELLER)].join(' · ')}`);
+  const hinweis = ids.length ? '' : '\n_(Willy kennt noch niemanden – schreibt mal was in den Chat.)_';
+  return new EmbedBuilder()
+    .setColor(0x8e6e53)
+    .setTitle(`🪑 Sitzplan für ${t.text}`)
+    .setDescription(
+      '🧑‍🏫 **Pult:** Hausmeister Willy (Vertretung)\n🪟 Fenster ─────────────── Tür 🚪\n\n' +
+        reihen.join('\n') +
+        `\n\n📝 Wer hier fehlt, sitzt auf dem Pausenhof. Änderungen nur per \`/formular\`.${hinweis}`,
+    )
+    .setFooter({ text: 'Gilt für heute. Morgen wird neu gewürfelt.' });
+}
+
+// ---------------------------------------------------------------------------
 // Zeitplan (läuft alle 30 Sekunden)
 // ---------------------------------------------------------------------------
 const randomDelay = ([min, max], unit) => (min + Math.random() * (Math.max(min, max) - min)) * unit;
@@ -296,6 +382,9 @@ export async function tickGuild(guild, nowDate = new Date()) {
   const now = nowDate.getTime();
 
   await rouletteAblauf(guild, g);
+
+  // Kaffeepause vorbei?
+  if (z.pauseBis && now >= z.pauseBis && !z.pauseEnde) await kaffeepauseBeenden(guild);
 
   // Feste Uhrzeiten (mit Zeitfenster, falls der Bot gerade neu gestartet ist)
   const vp = parseTime(config.spass.vertretungsplanUhrzeit, 7 * 60 + 15);
@@ -322,6 +411,7 @@ export async function tickGuild(guild, nowDate = new Date()) {
     ['durchsagen', postDurchsage, config.spass.durchsageStunden, HOUR],
     ['putzen', putzRundgang, config.spass.putzenStunden, HOUR],
     ['feueralarm', autoFeueralarm, config.spass.feueralarmTage, DAY],
+    ['kaffeepause', (gd) => kaffeepauseStarten(gd), config.spass.pauseStunden, HOUR],
   ];
   for (const [key, action, range, unit] of zufall) {
     if (!a[key]) continue;
@@ -359,7 +449,7 @@ export function initEvents(client) {
 // ---------------------------------------------------------------------------
 // Befehle
 // ---------------------------------------------------------------------------
-export const SPASS_COMMANDS = ['vertretungsplan', 'zeugnis', 'ausrede', 'hausaufgabe', 'feueralarm', 'automatik', 'namensroulette'];
+export const SPASS_COMMANDS = ['vertretungsplan', 'zeugnis', 'ausrede', 'hausaufgabe', 'feueralarm', 'automatik', 'namensroulette', 'sitzplan', 'kaffeepause'];
 
 export async function handleSpassCommand(interaction) {
   const guild = interaction.guild;
@@ -376,6 +466,22 @@ export async function handleSpassCommand(interaction) {
       const member = interaction.options.getMember('nutzer') ?? interaction.member;
       const user = member.user ?? interaction.user;
       return interaction.reply({ embeds: [zeugnisEmbed(user, member.displayName ?? user.username, heute().date)], allowedMentions: NO_PINGS });
+    }
+
+    case 'sitzplan': {
+      await interaction.deferReply();
+      return interaction.editReply({ embeds: [await sitzplanEmbed(guild)], allowedMentions: NO_PINGS });
+    }
+
+    case 'kaffeepause': {
+      const minuten = interaction.options.getInteger('minuten') ?? 10;
+      if (minuten === 0) {
+        if (!istPause(guild.id)) return interaction.reply({ content: 'Willy ist gar nicht in der Pause. Leider.', ...ephemeral });
+        await interaction.reply({ content: '⏹️ Pause wird beendet. Willy ist nicht begeistert.', ...ephemeral });
+        return kaffeepauseBeenden(guild);
+      }
+      await interaction.reply({ content: `☕ Willy geht jetzt ${minuten} Minuten in die Pause.`, ...ephemeral });
+      return kaffeepauseStarten(guild, minuten);
     }
 
     case 'ausrede':

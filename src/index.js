@@ -15,7 +15,8 @@ import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moder
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
-import { SPASS_COMMANDS, handleSpassCommand, initEvents, merkeAktiv } from './features/events.js';
+import { SPASS_COMMANDS, handleSpassCommand, initEvents, istPause, merkeAktiv, pauseText } from './features/events.js';
+import { initVoiceNames } from './features/voicenames.js';
 import { handleSoundsCommand } from './features/sounds.js';
 import { handleFormular, handleFormularCommand } from './features/formulare.js';
 
@@ -46,6 +47,7 @@ const STATUS = [
 ];
 
 function rotateStatus() {
+  if (client.guilds.cache.some((g) => istPause(g.id))) return; // in der Kaffeepause bleibt der Pause-Status
   client.user.setPresence({ activities: [{ type: ActivityType.Custom, name: 'custom', state: pick(STATUS) }] });
 }
 
@@ -74,6 +76,7 @@ client.once(Events.ClientReady, async () => {
   initChaos(client);
   initRoulette(client);
   initEvents(client);
+  initVoiceNames(client);
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommands(guild));
@@ -86,8 +89,14 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
 // ---------------------------------------------------------------------------
 // Slash-Befehle
 // ---------------------------------------------------------------------------
+// Diese Befehle funktionieren auch während Willys Kaffeepause (Verwaltung)
+const PAUSE_AUSNAHMEN = ['setup', 'automatik', 'kaffeepause', 'ki', 'server', 'bot', 'co-owner', 'chaos', 'moderation', 'sounds'];
+
 async function handleCommand(interaction) {
   const ephemeral = { flags: MessageFlags.Ephemeral };
+  if (istPause(interaction.guildId) && !PAUSE_AUSNAHMEN.includes(interaction.commandName)) {
+    return interaction.reply({ content: pauseText(interaction.guildId), ...ephemeral });
+  }
   if (SPASS_COMMANDS.includes(interaction.commandName)) return handleSpassCommand(interaction);
   const g = guildState(interaction.guildId);
 

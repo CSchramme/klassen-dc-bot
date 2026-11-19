@@ -16,6 +16,7 @@ import {
 } from 'discord.js';
 import { config } from '../config.js';
 import { askAI } from '../ai.js';
+import { istPause, pauseText } from './events.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick, sleep, truncate } from '../util.js';
 import { findChannel, findRole } from './roles.js';
@@ -109,6 +110,11 @@ export async function handleMention(message) {
   // Ernste Themen gehen nicht an die KI
   if (SERIOUS_WORDS.test(text)) {
     await reply(SERIOUS_CHAT_REPLY);
+    return true;
+  }
+  // Kaffeepause: Willy antwortet im Chat nur mit Pausen-Sprüchen (Tickets laufen weiter)
+  if (istPause(message.guild.id)) {
+    await reply(pauseText(message.guild.id));
     return true;
   }
 

@@ -166,6 +166,16 @@ export const COMMANDS = [
       .addUserOption((o) => o.setName('nutzer').setDescription('Für wen?')),
   ),
 
+  guildOnly(new SlashCommandBuilder().setName('sitzplan').setDescription('Der heutige Sitzplan der Klasse (ohne Gewähr)')),
+
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('kaffeepause')
+      .setDescription('Schickt Willy in die Kaffeepause (0 = Pause beenden)')
+      .setDefaultMemberPermissions(P.ManageGuild)
+      .addIntegerOption((o) => o.setName('minuten').setDescription('Wie lange? (Standard: 10)').setMinValue(0).setMaxValue(60)),
+  ),
+
   guildOnly(new SlashCommandBuilder().setName('ausrede').setDescription('Ausrede für vergessene Hausaufgaben')),
 
   guildOnly(new SlashCommandBuilder().setName('hausaufgabe').setDescription('Eine sinnlose Hausaufgabe')),
