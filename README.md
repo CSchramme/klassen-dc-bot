@@ -30,6 +30,8 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 📰 **Willy-Kurier** | Die Schülerzeitung erscheint freitags um 16 Uhr in #ankündigungen: Schlagzeile der Woche („SKANDAL: 48 GB RAM verschwunden“), Zahlen der Woche, die Besten, Spitznamen, Kommentar der Chefredaktion, Wetter, Horoskop, Kleinanzeigen. `/zeitung lesen` zeigt den Vorabdruck. |
 | 🔧 **Reparaturaufträge** | `/reparatur was:WLAN kaputt`: Willy nimmt den Auftrag an (Werkzeug: ein Löffel), meldet sich nach 1–2 Minuten mit dem Reparaturbericht und macht dabei manchmal etwas anderes kaputt: kurz Slowmode, eine komische Kanalbeschreibung oder Willy heißt 30 Minuten „🩹 Hausmeister Willy (verletzt)“. Alles wird automatisch zurückgestellt, auch nach einem Neustart. |
 | 🧦 **Fundbüro** | `/fundbuero abgeben`, `liste`, `abholen`. Manches hat Willy leider schon benutzt. Die linke Socke und 1 % vom Ladebalken gehören jetzt Willy. Fundsachen landen auch in den Kleinanzeigen vom Willy-Kurier. |
+| 🟩 **Wort des Tages** | Wie Wordle, nur mit Schul- und Insider-Wörtern (TAFEL, SOCKE, HEINZ …): `/wort raten`, 6 Versuche am Tag. Wer es schafft, bekommt eine öffentliche Meldung mit den Kästchen (ohne die Lösung zu verraten). `/wort bestenliste` zeigt, wer am öftesten gelöst hat. |
+| ⚔️ **Duell** | `/duell @jemand`: Schere, Stein, Papier mit geheimer Wahl. Wer verliert, hat eine Stunde die Rolle „🧽 Tafeldienst“. Gegen Willy geht auch. Manchmal kommt Willy mit dem Besen dazwischen. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -159,6 +161,8 @@ Pro Bot:
 | `/zeitung lesen / drucken` | alle / Admin | Vorabdruck des Willy-Kuriers bzw. sofort drucken und neue Woche starten |
 | `/reparatur <was>` | alle (alle 10 Min.) | Reparaturauftrag an Willy |
 | `/fundbuero liste / abgeben / abholen` | alle | Das Fundbüro der Hausmeisterei |
+| `/wort raten / status / bestenliste` | alle | Wort des Tages |
+| `/duell <gegner>` | alle | Schere, Stein, Papier um den Tafeldienst |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |

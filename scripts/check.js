@@ -732,7 +732,81 @@ async function simulateWerkstatt() {
   assert.equal(_werkstatt(gid).fund.sachen.length, 0);
 }
 
+// ---------------------------------------------------------------- Pausenspiele: Wort des Tages und Duell
+async function simulateSpiele() {
+  const sp = await import('../src/features/spiele.js');
+  // Bewertung wie bei Wordle (doppelte Buchstaben)
+  assert.equal(sp.bewerten('TAFEL', 'TAFEL'), 'ggggg');
+  assert.equal(sp.bewerten('EEEEE', 'BESEN'), '-g-g-');
+  assert.equal(sp.bewerten('NOTEN', 'ENTEN'), 'y-ggg');
+  assert.equal(sp.bewerten('SOCKE', 'BESEN'), 'y---y');
+  assert.ok(sp.WOERTER.length >= 40 && sp.WOERTER.every((w) => /^[A-Z]{5}$/.test(w)), 'Wortliste kaputt');
+  assert.equal(new Set(sp.WOERTER).size, sp.WOERTER.length, 'Wort doppelt');
+  assert.equal(sp.wortDesTages('g1', '2026-11-20'), sp.wortDesTages('g1', '2026-11-20'), 'Wort des Tages nicht stabil');
+
+  const gid = 'g-spiele';
+  const loesung = sp.wortDesTages(gid);
+  const replies = [];
+  const oeffentlich = [];
+  const ia = (sub, opts, userId = 'u1') => ({ guildId: gid, user: { id: userId, username: 'tim' }, member: { displayName: 'Tim' }, commandName: 'wort',
+    channel: { send: async (p) => oeffentlich.push(p) }, options: { getSubcommand: () => sub, getString: (k) => opts[k] }, reply: async (p) => replies.push(p) });
+  const falsch = sp.WOERTER.find((w) => w !== loesung);
+  await sp.handleSpieleCommand(ia('raten', { wort: 'abc' }));
+  assert.ok(/5 Buchstaben/.test(replies.at(-1).content));
+  await sp.handleSpieleCommand(ia('raten', { wort: falsch.toLowerCase() }));
+  assert.ok(replies.at(-1).flags && replies.at(-1).content.includes('1/6'));
+  await sp.handleSpieleCommand(ia('raten', { wort: falsch }));
+  assert.ok(/schon probiert/.test(replies.at(-1).content), 'gleicher Versuch zweimal gezählt');
+  await sp.handleSpieleCommand(ia('raten', { wort: loesung }));
+  assert.ok(/Richtig/.test(replies.at(-1).content));
+  assert.equal(oeffentlich.length, 1);
+  assert.ok(!oeffentlich[0].content.includes(loesung), 'Lösung öffentlich verraten!');
+  assert.ok(oeffentlich[0].content.includes('🟩🟩🟩🟩🟩'));
+  await sp.handleSpieleCommand(ia('raten', { wort: loesung }));
+  assert.ok(/schon gelöst/.test(replies.at(-1).content));
+  // 6 Fehlversuche -> Lösung nur privat
+  const falsche = sp.WOERTER.filter((w) => w !== loesung).slice(0, 6);
+  for (const w of falsche) await sp.handleSpieleCommand(ia('raten', { wort: w }, 'u2'));
+  assert.ok(replies.at(-1).flags && replies.at(-1).content.includes(loesung));
+  await sp.handleSpieleCommand(ia('bestenliste', {}));
+  assert.ok(replies.at(-1).embeds[0].toJSON().description.includes('<@u1>'));
+
+  // Duell
+  for (const [a, b, s] of [['schere', 'papier', 1], ['stein', 'papier', -1], ['stein', 'stein', 0], ['papier', 'stein', 1]]) assert.equal(sp.sieger(a, b), s);
+  const rollen = new Collection();
+  const vergeben = [];
+  const guild = { id: gid, roles: { cache: rollen, create: async (o) => { const r = { id: 'tafel', name: o.name }; rollen.set(r.id, r); return r; } },
+    members: { fetch: async (id) => ({ id, roles: { add: async (r) => vergeben.push([id, r.id]), remove: async (r) => vergeben.push([`-${id}`, r.id]) } }) } };
+  let msg = null;
+  const duellIa = (userId, extra = {}) => ({ guildId: gid, guild, client: { user: { id: 'willy' } }, user: { id: userId }, commandName: 'duell',
+    options: { getUser: () => ({ id: 'u2', bot: false }) }, message: { edit: async () => {} },
+    reply: async (p) => { if (!p.flags) msg = p; replies.push(p); }, update: async (p) => { msg = p; }, editReply: async () => {}, ...extra });
+  await sp.handleSpieleCommand(duellIa('u1'));
+  const id = msg.components[0].toJSON().components[0].custom_id.split(':')[2];
+  await sp.handleDuell(duellIa('u3'), 'annehmen', id);
+  assert.ok(/nicht dein Duell/.test(replies.at(-1).content));
+  await sp.handleDuell(duellIa('u2'), 'annehmen', id);
+  assert.equal(msg.components[0].toJSON().components.length, 3, 'Waffen fehlen');
+  await sp.handleDuell(duellIa('u1'), 'wahl', id, 'stein');
+  await sp.handleDuell(duellIa('u1'), 'wahl', id, 'papier');
+  assert.ok(/Umentscheiden/.test(replies.at(-1).content));
+  const rnd = Math.random;
+  Math.random = () => 0.5; // kein Willy-Besen
+  try {
+    await sp.handleDuell(duellIa('u2'), 'wahl', id, 'schere');
+  } finally {
+    Math.random = rnd;
+  }
+  assert.ok(/gewinnt/.test(msg.embeds[0].toJSON().description) && msg.components.length === 0);
+  assert.deepEqual(vergeben, [['u2', 'tafel']], 'Verlierer:in hat keinen Tafeldienst');
+  await sp.handleDuell(duellIa('u2'), 'wahl', id, 'schere');
+  assert.ok(/vorbei/.test(replies.at(-1).content));
+  await sp.spieleTick(guild, Date.now() + 2 * 60 * 60_000);
+  assert.deepEqual(vergeben.at(-1), ['-u2', 'tafel'], 'Tafeldienst nicht beendet');
+}
+
 for (const [name, fn] of [
+  ['Pausenspiele', simulateSpiele],
   ['Hausmeisterei', simulateWerkstatt],
   ['Schulwoche', simulateWoche],
   ['Abgleich alter Server', simulateAbgleich],

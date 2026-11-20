@@ -326,4 +326,20 @@ export const COMMANDS = [
         s.setName('abholen').setDescription('Etwas abholen').addIntegerOption((o) => o.setName('nummer').setDescription('Nummer aus der Liste').setRequired(true).setMinValue(1)),
       ),
   ),
+
+  // Pausenspiele
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('wort')
+      .setDescription('Wort des Tages: 5 Buchstaben, 6 Versuche (Schule & Insider)')
+      .addSubcommand((s) => s.setName('raten').setDescription('Ein Wort raten').addStringOption((o) => o.setName('wort').setDescription('5 Buchstaben').setRequired(true).setMinLength(5).setMaxLength(10)))
+      .addSubcommand((s) => s.setName('status').setDescription('Deine Versuche von heute'))
+      .addSubcommand((s) => s.setName('bestenliste').setDescription('Wer hat am öftesten gelöst?')),
+  ),
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('duell')
+      .setDescription('Schere, Stein, Papier. Wer verliert, hat eine Stunde Tafeldienst.')
+      .addUserOption((o) => o.setName('gegner').setDescription('Wen forderst du heraus? (Willy geht auch)').setRequired(true)),
+  ),
 ].map((c) => c.toJSON());
