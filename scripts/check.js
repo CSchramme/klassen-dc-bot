@@ -819,7 +819,63 @@ async function checkKlassenfoto() {
   }
 }
 
+// ---------------------------------------------------------------- Tafel
+async function simulateTafel() {
+  const tafel = await import('../src/features/tafel.js');
+  assert.equal(tafel.korrektur('Das ist standart'), 'Standard');
+  assert.equal(tafel.korrektur('Alles gut'), null);
+  for (const text of ['Hi', 'Ein sehr langer Text '.repeat(9), 'Donaudampfschifffahrtsgesellschaftskapitänsmützenhalterung'.repeat(3), 'Zeile 1\nZeile 2\n\nZeile 4 mit ÄÖÜß']) {
+    for (const gewischt of [false, true]) {
+      const png = await tafel.tafelBild({ text, autor: 'Tim 🦆', datum: '2026-11-20', gewischt });
+      assert.equal(png.subarray(1, 4).toString(), 'PNG');
+    }
+  }
+
+  const gid = 'g-tafel';
+  const gesendet = [];
+  const bearbeitet = [];
+  const kanal = { id: 'k1', send: async (p) => { gesendet.push(p); return { id: `m${gesendet.length}` }; },
+    messages: { edit: async (id, p) => bearbeitet.push([id, p]) } };
+  const modlog = { id: 'ml', isTextBased: () => true, send: async (p) => gesendet.push({ modlog: true, ...p }) };
+  guildState(gid).ids = { ch_modlog: 'ml' };
+  const guild = { id: gid, channels: { cache: new Collection([['k1', kanal], ['ml', modlog]]) } };
+  const antworten = [];
+  const ia = (sub, opts, userId = 'u1', team = false) => ({ guildId: gid, guild, channel: kanal, channelId: 'k1', user: { id: userId, username: 'tim' }, member: { displayName: 'Tim' },
+    memberPermissions: { has: () => team }, options: { getSubcommand: () => sub, getString: (k) => opts[k] ?? null },
+    reply: async (p) => antworten.push(p), deferReply: async () => {}, editReply: async (p) => antworten.push(p), update: async (p) => bearbeitet.push(['update', p]) });
+
+  await tafel.handleTafelCommand(ia('schreiben', { text: 'Hallo <@123> @everyone\\nzweite Zeile', farbe: 'gelb' }));
+  const msg = gesendet.find((p) => !p.modlog);
+  assert.ok(msg.files?.length === 1 && msg.components?.length === 1, 'Tafel ohne Bild oder Knopf');
+  assert.deepEqual(msg.allowedMentions, { parse: [] });
+  assert.ok(gesendet.some((p) => p.modlog), 'kein Protokoll in der Polizeiwache');
+  const eintrag = guildState(gid).tafel.aktiv[0];
+  assert.ok(!/<@123>|@everyone/.test(eintrag.text) && eintrag.text.includes('\n'), `Text nicht bereinigt: ${eintrag.text}`);
+  await tafel.handleTafelCommand(ia('schreiben', { text: 'nochmal' }));
+  assert.ok(/Kreide ist noch warm/.test(antworten.at(-1).content), 'Cooldown fehlt');
+  await tafel.handleTafelCommand(ia('schreiben', { text: 'ich werde gemobbt' }, 'u9'));
+  assert.ok(/ernst/.test(antworten.at(-1).content), 'ernstes Thema nicht erkannt');
+
+  // Fremde dürfen nicht wischen, wer geschrieben hat schon
+  const knopfId = String(eintrag.nr);
+  await tafel.handleTafel(ia('', {}, 'u2'), 'wischen', knopfId);
+  assert.ok(/Wischen dürfen nur/.test(antworten.at(-1).content));
+  await tafel.handleTafel(ia('', {}, 'u1'), 'wischen', knopfId);
+  assert.equal(bearbeitet.at(-1)[0], 'update');
+  assert.deepEqual(bearbeitet.at(-1)[1].components, []);
+  assert.equal(guildState(gid).tafel.aktiv.length, 0);
+
+  // Nach einer Stunde wischt Willy (auch nach Neustart, über den gespeicherten Stand)
+  await tafel.handleTafelCommand(ia('schreiben', { text: 'Tafel 2' }, 'u3'));
+  await tafel.tafelTick(guild); // noch nicht fällig (außer Willy hat zu früh gewischt)
+  await tafel.tafelTick(guild, Date.now() + 2 * 60 * 60_000);
+  assert.equal(guildState(gid).tafel.aktiv.length, 0);
+  assert.equal(bearbeitet.at(-1)[0], 'm3');
+  assert.match(bearbeitet.at(-1)[1].content, /gewischt/);
+}
+
 for (const [name, fn] of [
+  ['Tafel', simulateTafel],
   ['Klassenfoto', checkKlassenfoto],
   ['Pausenspiele', simulateSpiele],
   ['Hausmeisterei', simulateWerkstatt],

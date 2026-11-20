@@ -9,26 +9,13 @@ import { config } from '../config.js';
 import { guildState } from '../storage.js';
 import { localNow, logError, seededRng, shuffleWith, truncate } from '../util.js';
 import { FACH_KEYS, FAECHER } from './schule-daten.js';
+import { canvasLaden, rundesRechteck } from './leinwand.js';
 
 const ASSETS = path.resolve('assets');
 const AKTIV_TAGE = 14;
 const MAX_LEUTE = 30;
 const PRO_REIHE = 10;
 const W = 1600;
-
-let canvasModul;
-async function canvasLaden() {
-  if (canvasModul !== undefined) return canvasModul;
-  try {
-    canvasModul = await import('@napi-rs/canvas');
-    canvasModul.GlobalFonts.registerFromPath(path.join(ASSETS, 'fonts', 'DejaVuSans.ttf'), 'Klasse');
-    canvasModul.GlobalFonts.registerFromPath(path.join(ASSETS, 'fonts', 'DejaVuSans-Bold.ttf'), 'Klasse');
-  } catch (err) {
-    logError('klassenfoto:canvas', err);
-    canvasModul = null;
-  }
-  return canvasModul;
-}
 
 /** Namen ohne Emojis (die Schrift kann keine), kurz. */
 export const fotoName = (name) =>
@@ -57,16 +44,6 @@ async function bildLaden(c, quelle) {
 // ---------------------------------------------------------------------------
 // Zeichnen
 // ---------------------------------------------------------------------------
-function rundesRechteck(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 function koerper(ctx, x, y, r, farbe) {
   ctx.fillStyle = farbe;
   ctx.beginPath();

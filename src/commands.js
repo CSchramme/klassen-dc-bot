@@ -343,4 +343,28 @@ export const COMMANDS = [
       .addUserOption((o) => o.setName('gegner').setDescription('Wen forderst du heraus? (Willy geht auch)').setRequired(true)),
   ),
   guildOnly(new SlashCommandBuilder().setName('klassenfoto').setDescription('Willy macht ein Klassenfoto (mit allen Aktiven, Lehrkräften, Heinz und einer Ente)')),
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('tafel')
+      .setDescription('Mit Kreide an die Tafel schreiben (Willy wischt nach einer Stunde)')
+      .addSubcommand((s) =>
+        s
+          .setName('schreiben')
+          .setDescription('Etwas an die Tafel schreiben')
+          .addStringOption((o) => o.setName('text').setDescription('Was soll an die Tafel? (\\n = neue Zeile)').setRequired(true).setMaxLength(200))
+          .addStringOption((o) =>
+            o
+              .setName('farbe')
+              .setDescription('Kreidefarbe')
+              .addChoices(
+                { name: 'Weiß', value: 'weiss' },
+                { name: 'Gelb', value: 'gelb' },
+                { name: 'Rosa', value: 'rosa' },
+                { name: 'Blau', value: 'blau' },
+                { name: 'Grün (sieht man kaum)', value: 'gruen' },
+              ),
+          ),
+      )
+      .addSubcommand((s) => s.setName('wischen').setDescription('Tafeln in diesem Kanal wischen (eigene; Team: alle)')),
+  ),
 ].map((c) => c.toJSON());

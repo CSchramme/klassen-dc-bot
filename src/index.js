@@ -21,6 +21,7 @@ import { WOCHEN_COMMANDS, handleWochenCommand } from './features/woche.js';
 import { WERKSTATT_COMMANDS, handleWerkstattCommand, initWerkstatt } from './features/werkstatt.js';
 import { SPIELE_COMMANDS, handleDuell, handleSpieleCommand, initSpiele } from './features/spiele.js';
 import { handleKlassenfoto } from './features/klassenfoto.js';
+import { handleTafel, handleTafelCommand, initTafel } from './features/tafel.js';
 import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule, lehrerErwaehnt } from './features/schule.js';
 import { startLehrerBots } from './lehrer-bots.js';
 import { handleSoundsCommand } from './features/sounds.js';
@@ -97,6 +98,7 @@ client.once(Events.ClientReady, async () => {
   initSchule(client);
   initWerkstatt(client);
   initSpiele(client);
+  initTafel(client);
 });
 
 client.on(Events.GuildCreate, (guild) => registerCommands(guild));
@@ -123,6 +125,7 @@ async function handleCommand(interaction) {
   if (WERKSTATT_COMMANDS.includes(interaction.commandName)) return handleWerkstattCommand(interaction);
   if (SPIELE_COMMANDS.includes(interaction.commandName)) return handleSpieleCommand(interaction);
   if (interaction.commandName === 'klassenfoto') return handleKlassenfoto(interaction);
+  if (interaction.commandName === 'tafel') return handleTafelCommand(interaction);
   const g = guildState(interaction.guildId);
 
   switch (interaction.commandName) {
@@ -256,6 +259,8 @@ async function handleComponent(interaction) {
       return handleSchule(interaction, action, arg, arg2);
     case 'duell':
       return handleDuell(interaction, action, arg, arg2);
+    case 'tafel':
+      return handleTafel(interaction, action, arg);
     default:
       return interaction.reply({ content: 'Dieser Knopf ist aus einer anderen Zeit.', flags: MessageFlags.Ephemeral });
   }

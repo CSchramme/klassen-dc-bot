@@ -33,6 +33,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🟩 **Wort des Tages** | Wie Wordle, nur mit Schul- und Insider-Wörtern (TAFEL, SOCKE, HEINZ …): `/wort raten`, 6 Versuche am Tag. Wer es schafft, bekommt eine öffentliche Meldung mit den Kästchen (ohne die Lösung zu verraten). `/wort bestenliste` zeigt, wer am öftesten gelöst hat. |
 | ⚔️ **Duell** | `/duell @jemand`: Schere, Stein, Papier mit geheimer Wahl. Wer verliert, hat eine Stunde die Rolle „🧽 Tafeldienst“. Gegen Willy geht auch. Manchmal kommt Willy mit dem Besen dazwischen. |
 | 📸 **Klassenfoto** | `/klassenfoto` malt ein echtes Bild: hinten die 9 Lehrkräfte, in der Mitte alle, die in den letzten 14 Tagen aktiv waren (mit Profilbild und Namensschild), vorne Willy mit Besen, Heinz der Kaktus und eine Ente, die nicht eingeladen war. Eine Person trägt einen Partyhut, eine eine Sonnenbrille, eine ist verwackelt, und unten links ist der Daumen des Fotografen. |
+| 🖍️ **Tafel** | `/tafel schreiben text:…` schreibt deinen Text mit Kreide an eine Tafel (als Bild, in Weiß, Gelb, Rosa, Blau oder kaum sichtbarem Grün). Unten steht, wer es war. Typische Fehler wie „standart“ korrigiert Herr Kommasetzung mit roter Kreide. Nach einer Stunde wischt Willy die Tafel weg (manchmal viel zu früh). Wegwischen dürfen auch, wer geschrieben hat, und das Team (Knopf oder `/tafel wischen`). Jede Tafel landet zusätzlich im Protokoll der 🚨-polizeiwache. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -165,6 +166,7 @@ Pro Bot:
 | `/wort raten / status / bestenliste` | alle | Wort des Tages |
 | `/duell <gegner>` | alle | Schere, Stein, Papier um den Tafeldienst |
 | `/klassenfoto` | alle (alle 5 Min.) | Klassenfoto als Bild |
+| `/tafel schreiben <text> [farbe] / wischen` | alle (alle 2 Min.) | An die Tafel schreiben bzw. eigene Tafeln wischen (Team: alle im Kanal) |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |

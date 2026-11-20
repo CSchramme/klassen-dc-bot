@@ -35,6 +35,7 @@ const ZAHLEN = {
   fundsachen: { label: 'Fundsachen abgegeben', emoji: '🧦' },
   duelle: { label: 'Duelle ausgetragen', emoji: '⚔️' },
   woerter: { label: 'Wort des Tages gelöst', emoji: '🟩' },
+  tafel: { label: 'Tafelbilder', emoji: '🖍️' },
 };
 
 const SCHLAGZEILEN = {
