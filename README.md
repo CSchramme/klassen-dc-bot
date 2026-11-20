@@ -28,6 +28,8 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | ☕ **Lehrerkonferenz** | Freitags um 15 Uhr (oder mit `/lehrerkonferenz`) treffen sich 4–5 Lehrkräfte im ☕-lehrerzimmer und reden über die Woche: Feueralarme, geklauter RAM, Gänse. Wer im Quiz am besten war, wird gelobt. Willy wischt dazwischen, Heinz der Kaktus sagt „…“. Am Ende gibt es Beschlüsse („Die Kaffeemaschine wird als Lehrkraft geführt“). Mit KI frei erfunden, sonst aus Bausteinen. Schüler:innen werden nur positiv erwähnt. |
 | 👪 **Elternsprechtag** | `/elternsprechtag`: Die Lehrkräfte vom besten und vom schwächsten Fach sagen etwas zu den echten Noten aus dem Unterricht, die „Eltern“ antworten („Und was gibt es heute in der Mensa?“). Über andere Leute nur privat. |
 | 📰 **Willy-Kurier** | Die Schülerzeitung erscheint freitags um 16 Uhr in #ankündigungen: Schlagzeile der Woche („SKANDAL: 48 GB RAM verschwunden“), Zahlen der Woche, die Besten, Spitznamen, Kommentar der Chefredaktion, Wetter, Horoskop, Kleinanzeigen. `/zeitung lesen` zeigt den Vorabdruck. |
+| 🔧 **Reparaturaufträge** | `/reparatur was:WLAN kaputt`: Willy nimmt den Auftrag an (Werkzeug: ein Löffel), meldet sich nach 1–2 Minuten mit dem Reparaturbericht und macht dabei manchmal etwas anderes kaputt: kurz Slowmode, eine komische Kanalbeschreibung oder Willy heißt 30 Minuten „🩹 Hausmeister Willy (verletzt)“. Alles wird automatisch zurückgestellt, auch nach einem Neustart. |
+| 🧦 **Fundbüro** | `/fundbuero abgeben`, `liste`, `abholen`. Manches hat Willy leider schon benutzt. Die linke Socke und 1 % vom Ladebalken gehören jetzt Willy. Fundsachen landen auch in den Kleinanzeigen vom Willy-Kurier. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -155,6 +157,8 @@ Pro Bot:
 | `/lehrerkonferenz` | alle (1× pro Stunde, Team alle 5 Min.) | Lehrkräfte zur Konferenz ins Lehrerzimmer rufen |
 | `/elternsprechtag [nutzer]` | alle | Was sagen die Lehrkräfte zu den Noten? (über andere nur privat) |
 | `/zeitung lesen / drucken` | alle / Admin | Vorabdruck des Willy-Kuriers bzw. sofort drucken und neue Woche starten |
+| `/reparatur <was>` | alle (alle 10 Min.) | Reparaturauftrag an Willy |
+| `/fundbuero liste / abgeben / abholen` | alle | Das Fundbüro der Hausmeisterei |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |

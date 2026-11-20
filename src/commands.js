@@ -306,4 +306,24 @@ export const COMMANDS = [
       .addSubcommand((s) => s.setName('lesen').setDescription('Vorabdruck der aktuellen Ausgabe lesen'))
       .addSubcommand((s) => s.setName('drucken').setDescription('Ausgabe jetzt in #ankündigungen drucken und neue Woche starten (Admins)')),
   ),
+
+  // Hausmeisterei
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('reparatur')
+      .setDescription('Willy repariert etwas. Und macht dabei vielleicht was anderes kaputt.')
+      .addStringOption((o) => o.setName('was').setDescription('Was ist kaputt?').setRequired(true).setMaxLength(200)),
+  ),
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('fundbuero')
+      .setDescription('Das Fundbüro der Hausmeisterei')
+      .addSubcommand((s) => s.setName('liste').setDescription('Was liegt im Fundbüro?'))
+      .addSubcommand((s) =>
+        s.setName('abgeben').setDescription('Etwas Gefundenes abgeben').addStringOption((o) => o.setName('gegenstand').setDescription('Was hast du gefunden?').setRequired(true).setMaxLength(80)),
+      )
+      .addSubcommand((s) =>
+        s.setName('abholen').setDescription('Etwas abholen').addIntegerOption((o) => o.setName('nummer').setDescription('Nummer aus der Liste').setRequired(true).setMinValue(1)),
+      ),
+  ),
 ].map((c) => c.toJSON());

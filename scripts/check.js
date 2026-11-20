@@ -689,7 +689,51 @@ async function simulateWoche() {
   embedOk((await kurierEmbed(guild)).toJSON()); // leere Woche
 }
 
+// ---------------------------------------------------------------- Hausmeisterei: Reparatur und Fundbüro
+async function simulateWerkstatt() {
+  const { reparieren, werkstattTick, handleWerkstattCommand, _werkstatt } = await import('../src/features/werkstatt.js');
+  const gid = 'g-werk';
+  const ch = { id: 'c1', type: 0, rateLimitPerUser: 0, topic: 'Original',
+    async setRateLimitPerUser(n) { ch.rateLimitPerUser = n; }, async setTopic(t) { ch.topic = t; } };
+  const me = { nickname: 'Willy', async setNickname(n) { me.nickname = n; } };
+  const guild = { id: gid, channels: { cache: new Collection([['c1', ch]]) }, members: { me } };
+  const rnd = Math.random;
+  Math.random = () => 0; // immer Nebenwirkungen
+  try {
+    for (let i = 1; i <= 3; i++) embedOk((await reparieren(guild, ch, 'WLAN', i)).toJSON());
+  } finally {
+    Math.random = rnd;
+  }
+  assert.equal(me.nickname, '🩹 Hausmeister Willy (verletzt)');
+  assert.ok(ch.rateLimitPerUser === 10 || ch.topic.startsWith('🔧'), 'keine Nebenwirkung im Kanal');
+  assert.equal(_werkstatt(gid).rueckgaengig.length, 2, 'pro Kanal nur eine Nebenwirkung gleichzeitig');
+  await werkstattTick(guild); // noch nicht fällig
+  assert.equal(me.nickname, '🩹 Hausmeister Willy (verletzt)');
+  await werkstattTick(guild, Date.now() + 60 * 60_000);
+  assert.deepEqual([ch.rateLimitPerUser, ch.topic, me.nickname], [0, 'Original', 'Willy'], 'nicht alles rückgängig gemacht');
+  assert.equal(_werkstatt(gid).rueckgaengig.length, 0);
+
+  // Fundbüro
+  const replies = [];
+  const ia = (sub, opts, userId = 'u1') => ({ guildId: gid, guild, user: { id: userId }, commandName: 'fundbuero',
+    options: { getSubcommand: () => sub, getString: (k) => opts[k], getInteger: (k) => opts[k] }, reply: async (p) => replies.push(p) });
+  await handleWerkstattCommand(ia('abgeben', { gegenstand: 'Federmäppchen <@123> @everyone' }));
+  assert.match(replies[0].content, /Nr\. 1/);
+  assert.ok(!/<@123>|@everyone/.test(replies[0].content), 'Erwähnung im Fundbüro');
+  await handleWerkstattCommand(ia('liste', {}));
+  embedOk(replies[1].embeds[0].toJSON());
+  assert.ok(replies[1].embeds[0].toJSON().description.includes('Federmäppchen'));
+  await handleWerkstattCommand(ia('abholen', { nummer: 1 }, 'u2'));
+  assert.equal(_werkstatt(gid).fund.sachen.length, 0);
+  await handleWerkstattCommand(ia('abholen', { nummer: 1 }, 'u2'));
+  assert.ok(replies.at(-1).flags, 'nicht vorhandene Fundsache sollte privat antworten');
+  await handleWerkstattCommand(ia('abgeben', { gegenstand: 'ich werde gemobbt' }));
+  assert.ok(replies.at(-1).flags && /ernst/.test(replies.at(-1).content), 'ernstes Thema nicht erkannt');
+  assert.equal(_werkstatt(gid).fund.sachen.length, 0);
+}
+
 for (const [name, fn] of [
+  ['Hausmeisterei', simulateWerkstatt],
   ['Schulwoche', simulateWoche],
   ['Abgleich alter Server', simulateAbgleich],
   ['Zeugnis-PDF', checkZeugnisPdf],
