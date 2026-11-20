@@ -12,6 +12,7 @@ import { merke, zaehle } from '../chronik.js';
 import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisDaten, zeugnisEmbed } from './fun.js';
 import { zeugnisPdf } from './zeugnis-pdf.js';
 import { echteNoten } from './schule.js';
+import { wochenTick } from './woche.js';
 
 const NO_PINGS = { parse: [] };
 const HOUR = 60 * 60 * 1000;
@@ -27,6 +28,8 @@ export const AUTOMATIK = {
   kaffeepause: 'Willys Kaffeepause (1–2x am Tag)',
   sprachkanal: 'Sprachkanal-Umbenennung (wer allein ist)',
   unterricht: 'Unterricht nach Stundenplan',
+  lehrerkonferenz: 'Lehrerkonferenz (freitags 15 Uhr im Lehrerzimmer)',
+  kurier: 'Willy-Kurier (freitags 16 Uhr in #ankündigungen)',
 };
 
 /** Ist eine Automatik-Funktion an? (Standard: an) */
@@ -412,6 +415,9 @@ export async function tickGuild(guild, nowDate = new Date()) {
     save();
     if (kandidaten(g.namensroulette).length) await namensrouletteDrehen(guild);
   }
+
+  // Wochensachen (Lehrerkonferenz, Willy-Kurier)
+  await wochenTick(guild, a, z, nowDate);
 
   // Zufällige Sachen, nur tagsüber
   const tagsueber = t.hour >= config.spass.aktivVon && t.hour < config.spass.aktivBis;

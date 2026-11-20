@@ -74,10 +74,12 @@ function lehrerKanal(guild, fach, channelId = schule(guild.id).ids.raeume?.[fach
   return (channelId && lehrerBot(fach)?.channels.cache.get(channelId)) || null;
 }
 
-async function lehrerSagt(guild, fach, content) {
+async function lehrerSagt(guild, fach, content, ort = 'raum') {
   const s = schule(guild.id);
   const f = FAECHER[fach];
-  const eigen = lehrerKanal(guild, fach);
+  const imLz = ort === 'lehrerzimmer';
+  const kanalId = imLz ? s.ids.lehrerzimmer : s.ids.raeume?.[fach];
+  const eigen = lehrerKanal(guild, fach, kanalId);
   if (eigen) {
     try {
       await eigen.send({ content: truncate(content, 1900), allowedMentions: NO_PINGS });
@@ -86,7 +88,7 @@ async function lehrerSagt(guild, fach, content) {
       logError(`schule:lehrerbot:${fach}`, err);
     }
   }
-  const wh = s.ids.webhooks?.[fach];
+  const wh = (imLz ? s.ids.lzWebhooks : s.ids.webhooks)?.[fach];
   if (wh) {
     try {
       const client = new WebhookClient({ id: wh.id, token: wh.token });
@@ -97,10 +99,16 @@ async function lehrerSagt(guild, fach, content) {
       logError(`schule:webhook:${fach}`, err);
     }
   }
-  await raumVon(guild, fach)
+  await guild.channels.cache
+    .get(kanalId)
     ?.send({ content: truncate(`**${f.lehrer}:** ${content}`, 1900), allowedMentions: NO_PINGS })
     .catch(() => {});
 }
+
+/** Eine Lehrkraft sagt etwas im ☕-lehrerzimmer (eigener Bot, sonst Webhook, sonst Willy). */
+export const lehrerImLehrerzimmer = (guild, fach, text) => lehrerSagt(guild, fach, text, 'lehrerzimmer');
+export const lehrerzimmerKanal = (guild) => guild.channels.cache.get(schule(guild.id).ids.lehrerzimmer) ?? null;
+export const schuleEingerichtet = (guild) => istEingerichtet(guild);
 
 const lehrerEmbed = () => new EmbedBuilder().setColor(0x1f4d3a);
 const lehrerBild = (fach) => new AttachmentBuilder(path.join(AVATARE, FAECHER[fach].avatar), { name: 'lehrer.png' });

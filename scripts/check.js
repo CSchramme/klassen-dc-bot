@@ -33,6 +33,10 @@ const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
 const { fuerDiscord } = await import('../src/discord-text.js');
 
+// Tests laufen immer ohne KI (vorgefertigte Sprüche), auch wenn lokal ein Key in der .env steht
+delete process.env.GEMINI_API_KEY;
+delete process.env.ANTHROPIC_API_KEY;
+
 let ok = 0;
 const check = (name, fn) => {
   try {
@@ -620,7 +624,73 @@ async function checkZeugnisPdf() {
   }
 }
 
+// ---------------------------------------------------------------- Schulwoche: Konferenz, Sprechtag, Zeitung
+const embedLaenge = (e) =>
+  (e.title?.length ?? 0) + (e.description?.length ?? 0) + (e.footer?.text?.length ?? 0) + (e.author?.name?.length ?? 0) +
+  (e.fields ?? []).reduce((a, f) => a + f.name.length + f.value.length, 0);
+function embedOk(e) {
+  assert.ok(embedLaenge(e) <= 6000, `Embed zu lang: ${embedLaenge(e)}`);
+  assert.ok(!e.title || e.title.length <= 256, 'Titel zu lang');
+  assert.ok(!e.description || e.description.length <= 4096, 'Beschreibung zu lang');
+  assert.ok((e.fields ?? []).length <= 25, 'zu viele Felder');
+  for (const f of e.fields ?? []) assert.ok(f.name.length <= 256 && f.value.length >= 1 && f.value.length <= 1024, `Feld kaputt: ${f.name}`);
+}
+
+async function simulateWoche() {
+  const { lehrerkonferenz, elternsprechtagEmbed, kurierEmbed, kurierDrucken, fachVonName } = await import('../src/features/woche.js');
+  const { zaehle, siegerPunkt, merke, chronik } = await import('../src/chronik.js');
+  for (const f of Object.keys(FAECHER)) assert.equal(fachVonName(FAECHER[f].lehrer), f, `Lehrkraft nicht erkannt: ${FAECHER[f].lehrer}`);
+  assert.equal(fachVonName('**Coach Pfeife**'), 'sport');
+  assert.equal(fachVonName('Bruchrechnung'), 'mathe');
+  assert.equal(fachVonName('Willy'), null);
+
+  const gid = 'g-woche';
+  const sent = [];
+  const mkCh = (id, name) => ({ id, name, type: 0, isTextBased: () => true, send: async (p) => { sent.push({ ch: name, ...p }); return {}; } });
+  const lz = mkCh('lz', '☕-lehrerzimmer');
+  const ann = mkCh('ann', 'ankündigungen');
+  const member = { id: 'u1', displayName: 'Tim', displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png' };
+  const guild = { id: gid, systemChannel: null, channels: { cache: new Collection([[lz.id, lz], [ann.id, ann]]) },
+    members: { cache: new Collection([['u1', member]]), fetch: async () => member } };
+  const g = guildState(gid);
+  g.ids = { ch_announce: 'ann' };
+  g.schule = { ids: { raeume: { mathe: 'x' }, lehrerzimmer: 'lz' }, gehalten: { mathe: 3, sport: 4 }, klassenbuch: [],
+    schueler: { u1: { faecher: { mathe: { anwesend: 3, zuspaet: 0, punkte: 20, mitarbeit: 3 }, sport: { anwesend: 2, zuspaet: 2, punkte: 0, mitarbeit: 0 } } } } };
+  zaehle(gid, 'feueralarme', 2);
+  zaehle(gid, 'gaense', 3);
+  siegerPunkt(gid, 'u1', 5);
+  merke(gid, 'spitznamen', '🥔 Kartoffel des Tages');
+
+  // Lehrerkonferenz (ohne KI, ohne Webhooks -> Willy schreibt mit Namen davor)
+  assert.equal(await lehrerkonferenz(guild, { pause: 0 }), null);
+  assert.ok(sent.length >= 8, `Konferenz zu kurz: ${sent.length}`);
+  assert.ok(sent.every((m) => m.ch === '☕-lehrerzimmer' && m.allowedMentions?.parse?.length === 0), 'Konferenz außerhalb des Lehrerzimmers oder mit Pings');
+  assert.match(sent[0].embeds[0].toJSON().title, /Lehrerkonferenz/);
+  assert.match(sent.at(-1).embeds[0].toJSON().title, /Beschlüsse/);
+  assert.ok(sent.some((m) => /Tim/.test(m.content ?? '')), 'Lob für die Quiz-Siegerin/den Quiz-Sieger fehlt');
+  for (const m of sent) for (const e of m.embeds ?? []) embedOk(e.toJSON());
+
+  // Elternsprechtag: bestes und schwächstes Fach
+  const e = (await elternsprechtagEmbed(guild, member)).toJSON();
+  embedOk(e);
+  assert.ok(e.fields[0].name.includes('Mathe') && e.fields[1].name.includes('Sport'), e.fields.map((f) => f.name).join(' | '));
+  embedOk((await elternsprechtagEmbed(guild, { id: 'u2', displayName: 'Neu', displayAvatarURL: () => null })).toJSON());
+
+  // Willy-Kurier
+  const k = (await kurierEmbed(guild, { vorab: true })).toJSON();
+  embedOk(k);
+  assert.match(k.title, /Gänse/, 'Schlagzeile sollte die Gänse sein');
+  assert.ok(k.fields.some((f) => f.name.includes('Besten') && f.value.includes('Tim')));
+  sent.length = 0;
+  assert.equal(await kurierDrucken(guild), null);
+  assert.equal(sent[0].ch, 'ankündigungen');
+  assert.equal(chronik(gid).ausgabe, 1);
+  assert.deepEqual(chronik(gid).zahlen, {});
+  embedOk((await kurierEmbed(guild)).toJSON()); // leere Woche
+}
+
 for (const [name, fn] of [
+  ['Schulwoche', simulateWoche],
   ['Abgleich alter Server', simulateAbgleich],
   ['Zeugnis-PDF', checkZeugnisPdf],
   ['Formulare', simulateFormulare],

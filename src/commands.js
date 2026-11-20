@@ -290,4 +290,20 @@ export const COMMANDS = [
       .addSubcommand((s) => s.setName('wahl').setDescription('Wahl starten (läuft 24 Stunden)'))
       .addSubcommand((s) => s.setName('auswerten').setDescription('Wahl jetzt auswerten')),
   ),
+
+  // Schulwoche
+  guildOnly(new SlashCommandBuilder().setName('lehrerkonferenz').setDescription('Ruft die Lehrkräfte zur Konferenz ins Lehrerzimmer (mitlesen erlaubt)')),
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('elternsprechtag')
+      .setDescription('Elternsprechtag: Was sagen die Lehrkräfte zu den Noten?')
+      .addUserOption((o) => o.setName('nutzer').setDescription('Wer? (Standard: du; über andere nur privat)')),
+  ),
+  guildOnly(
+    new SlashCommandBuilder()
+      .setName('zeitung')
+      .setDescription('Der Willy-Kurier, die Schülerzeitung')
+      .addSubcommand((s) => s.setName('lesen').setDescription('Vorabdruck der aktuellen Ausgabe lesen'))
+      .addSubcommand((s) => s.setName('drucken').setDescription('Ausgabe jetzt in #ankündigungen drucken und neue Woche starten (Admins)')),
+  ),
 ].map((c) => c.toJSON());

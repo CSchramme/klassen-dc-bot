@@ -25,6 +25,9 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | ☕ **Willys Kaffeepause** | 1–2x am Tag macht Willy 10 Minuten Pause. Spaß-Befehle bekommen dann nur „☕ Pause. Noch 7 Minuten.“ (Tickets laufen weiter.) |
 | 🪑 **`/sitzplan`** | Täglicher Sitzplan aus den aktiven Leuten, aufgefüllt mit Enten, Kartoffeln und Heinz dem Kaktus. Wer „Hinterste Reihe“ gezogen hat, sitzt hinten. |
 | 🏫 **Schul-Spiel** | `/schule einrichten` legt 9 Fachräume (Mathe, Deutsch, Englisch, Bio, Geschichte, Sport, Chemie, Musik, Kunst), ein Lehrerzimmer und eigene Lehrer:innen an (z. B. „Frau Dr. Bruchrechnung“ in Mathe, „Coach Pfeife“ in Sport, jeweils mit eigenem Namen und Bild). Mo–Fr laut `/stundenplan` gibt es Unterricht: Gong im Sprachkanal, Anwesenheit per Knopf (zu spät = Klassenbuch), Mini-Lektion per KI, 3 Quizfragen, Mitarbeit zählt, am Ende Hausaufgabe und Pausenklingel. Daraus entstehen **echte Noten** (`/noten`), die auch im PDF-Zeugnis stehen. 3 Klassenbuch-Einträge = **Nachsitzen** (nur noch im Nachsitz-Raum schreiben, bis man 3x „Ich soll im Unterricht nicht stören.“ abgeschrieben hat). Dazu eine **Klassensprecher:innen-Wahl**. |
+| ☕ **Lehrerkonferenz** | Freitags um 15 Uhr (oder mit `/lehrerkonferenz`) treffen sich 4–5 Lehrkräfte im ☕-lehrerzimmer und reden über die Woche: Feueralarme, geklauter RAM, Gänse. Wer im Quiz am besten war, wird gelobt. Willy wischt dazwischen, Heinz der Kaktus sagt „…“. Am Ende gibt es Beschlüsse („Die Kaffeemaschine wird als Lehrkraft geführt“). Mit KI frei erfunden, sonst aus Bausteinen. Schüler:innen werden nur positiv erwähnt. |
+| 👪 **Elternsprechtag** | `/elternsprechtag`: Die Lehrkräfte vom besten und vom schwächsten Fach sagen etwas zu den echten Noten aus dem Unterricht, die „Eltern“ antworten („Und was gibt es heute in der Mensa?“). Über andere Leute nur privat. |
+| 📰 **Willy-Kurier** | Die Schülerzeitung erscheint freitags um 16 Uhr in #ankündigungen: Schlagzeile der Woche („SKANDAL: 48 GB RAM verschwunden“), Zahlen der Woche, die Besten, Spitznamen, Kommentar der Chefredaktion, Wetter, Horoskop, Kleinanzeigen. `/zeitung lesen` zeigt den Vorabdruck. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -149,6 +152,9 @@ Pro Bot:
 | `/noten [nutzer]` | alle | Echte Noten aus dem Unterricht |
 | `/klassenbuch anzeigen [nutzer] / eintrag` | alle / Team | Klassenbuch ansehen bzw. Eintrag machen |
 | `/klassensprecher wahl / auswerten` | Server verwalten | Wahl starten (24 h) bzw. sofort auswerten |
+| `/lehrerkonferenz` | alle (1× pro Stunde, Team alle 5 Min.) | Lehrkräfte zur Konferenz ins Lehrerzimmer rufen |
+| `/elternsprechtag [nutzer]` | alle | Was sagen die Lehrkräfte zu den Noten? (über andere nur privat) |
+| `/zeitung lesen / drucken` | alle / Admin | Vorabdruck des Willy-Kuriers bzw. sofort drucken und neue Woche starten |
 | `/vertretungsplan` | alle | Heutiger Vertretungsplan |
 | `/sitzplan` | alle | Heutiger Sitzplan |
 | `/kaffeepause [minuten]` | Server verwalten | Willy sofort in die Pause schicken (`minuten:0` beendet sie) |

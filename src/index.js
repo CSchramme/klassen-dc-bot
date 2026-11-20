@@ -17,6 +17,7 @@ import { handleBotCommand, handleServerCommand, initRoulette } from './features/
 import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand, serverAbgleich } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents, istPause, merkeAktiv, pauseText } from './features/events.js';
 import { initVoiceNames } from './features/voicenames.js';
+import { WOCHEN_COMMANDS, handleWochenCommand } from './features/woche.js';
 import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule, lehrerErwaehnt } from './features/schule.js';
 import { startLehrerBots } from './lehrer-bots.js';
 import { handleSoundsCommand } from './features/sounds.js';
@@ -113,6 +114,7 @@ async function handleCommand(interaction) {
   }
   if (SPASS_COMMANDS.includes(interaction.commandName)) return handleSpassCommand(interaction);
   if (SCHUL_COMMANDS.includes(interaction.commandName)) return handleSchulCommand(interaction);
+  if (WOCHEN_COMMANDS.includes(interaction.commandName)) return handleWochenCommand(interaction);
   const g = guildState(interaction.guildId);
 
   switch (interaction.commandName) {
