@@ -14,6 +14,7 @@ import {
 } from 'discord.js';
 import { pick, randInt, truncate } from '../util.js';
 import { insiderNames } from '../insider.js';
+import { zaehle } from '../chronik.js';
 
 const SESSION_TTL = 30 * 60 * 1000;
 const sessions = new Map(); // userId -> { form, page, answers, startedAt, prefill }
@@ -433,6 +434,7 @@ export async function handleFormular(interaction, action, arg) {
       }
 
       const nr = `${new Date().getFullYear()}/${randInt(1000, 99999)}`;
+      zaehle(interaction.guildId, 'antraege');
       await respond({ content: `✅ **Eingereicht.** Aktenzeichen ${nr}. Der Bescheid wurde öffentlich zugestellt.`, components: [] });
       const buttons = [btn(`form:widerspruch:${nr}`, '⚖️ Widerspruch einlegen (W-1)')];
       if (session.form === 'formular') buttons.unshift(btn('form:abholen', '📎 Antragsformular abholen', ButtonStyle.Success));

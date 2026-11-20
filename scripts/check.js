@@ -329,26 +329,40 @@ check('Sound-Dateien', () => {
 });
 
 async function simulateSoundUpload() {
+  let nid = 0;
+  const log = [];
+  const store = new Collection();
+  const mk = (name) => { const sd = { soundId: 'sd' + nid++, name, async delete() { store.delete(sd.soundId); log.push(`-${name}`); } }; store.set(sd.soundId, sd); return sd; };
+  for (const n of ['a', 'b', 'c', 'd', 'Schulgong']) mk(n); // 4 fremde Sounds + ein "Schulgong" unbekannter Version
   const created = [];
-  const existing = new Collection(['a', 'b', 'c', 'd', 'Schulgong'].map((n, i) => [`s${i}`, { name: n }]));
-  const guild = {
-    premiumTier: 0, // 8 Plätze, 5 belegt (einer davon ist schon "Schulgong")
-    soundboardSounds: { fetch: async () => existing, create: async (o) => created.push(o) },
-  };
-  const lines = await uploadSounds(guild);
-  assert.equal(created.length, 3, 'Es hätten genau 3 Sounds hochgeladen werden müssen');
-  assert.equal(created[0].name, 'Feueralarm', 'Feueralarm muss zuerst kommen');
-  assert.ok(created.every((o) => o.contentType === 'audio/mpeg' && o.file.length > 1000));
-  assert.ok(lines.some((l) => l.includes('Schon da') && l.includes('Schulgong')));
-  assert.ok(lines.some((l) => l.includes('Kein Platz')));
+  const guild = { id: 'g-sounds', premiumTier: 0, soundboardSounds: { fetch: async () => store, create: async (o) => { created.push(o); log.push(`+${o.name}`); return mk(o.name); } } };
 
-  // ersetzen: vorhandener "Schulgong" wird gelöscht und neu hochgeladen
-  const deleted = [];
-  const store = new Collection([['x', { name: 'Schulgong', delete: async () => { deleted.push('Schulgong'); store.delete('x'); } }]]);
-  const created2 = [];
-  await uploadSounds({ premiumTier: 0, soundboardSounds: { fetch: async () => store, create: async (o) => created2.push(o.name) } }, { replace: true });
-  assert.deepEqual(deleted, ['Schulgong']);
-  assert.ok(created2.includes('Schulgong') && created2.length === 8, `ersetzen hat ${created2.length} hochgeladen`);
+  const lines = await uploadSounds(guild);
+  assert.deepEqual(log.filter((l) => l.startsWith('-')), ['-Schulgong'], 'nur der alte Schulgong darf ersetzt werden');
+  assert.deepEqual(created.map((o) => o.name), ['Feueralarm', 'Schulgong', 'Trommelwirbel', 'Ladebalken 99%'], 'wichtigste zuerst, 4 freie Plätze');
+  assert.ok(created.every((o) => o.contentType === 'audio/mpeg' && o.file.length > 1000));
+  assert.ok(lines.some((l) => l.includes('Neue Version') && l.includes('Schulgong')));
+  assert.ok(lines.some((l) => l.includes('Kein Platz')));
+  for (const n of ['a', 'b', 'c', 'd']) assert.ok(store.some((x) => x.name === n), `fremder Sound ${n} weg`);
+
+  // Neustart ohne Änderungen: nichts passiert
+  log.length = 0;
+  const lines2 = await uploadSounds(guild);
+  assert.deepEqual(log, [], 'zweiter Lauf hat etwas geändert: ' + log.join(' '));
+  assert.ok(lines2.some((l) => l.includes('Schon da')));
+
+  // Ein Sound wurde geändert (neue Datei): nur der wird ersetzt
+  guildState('g-sounds').soundStand['schulgong.mp3'].hash = 'alt';
+  log.length = 0;
+  await uploadSounds(guild);
+  assert.deepEqual(log, ['-Schulgong', '+Schulgong']);
+
+  // ersetzen: alle von Willy neu, fremde bleiben
+  log.length = 0;
+  await uploadSounds(guild, { replace: true });
+  assert.equal(log.filter((l) => l.startsWith('-')).length, 4);
+  assert.equal(log.filter((l) => l.startsWith('+')).length, 4);
+  assert.equal(store.size, 8);
 }
 
 // ---------------------------------------------------------------- Nervige Formulare
@@ -428,20 +442,45 @@ async function simulateFormulare() {
 
 // ---------------------------------------------------------------- Abgleich: alter Chaos-Server -> neue Struktur
 async function simulateAbgleich() {
-  const { ChannelType } = await import('discord.js');
+  const { ChannelType, PermissionsBitField } = await import('discord.js');
   const T = ChannelType;
   let nid = 1000; const events = [];
   const channels = new Collection();
   const roles = new Collection();
+  const webhooks = new Collection();
+  const sounds = new Collection();
+  const bits = (list) => ({ bitfield: PermissionsBitField.resolve(list ?? []) });
+  const mkMsg = (ch, payload, authorId = 'bot') => {
+    const m = { id: 'm' + nid++, author: { id: authorId }, createdTimestamp: nid, content: payload.content ?? '',
+      embeds: (payload.embeds ?? []).map((e) => e.toJSON?.() ?? e),
+      components: (payload.components ?? []).map((r) => { const j = r.toJSON?.() ?? r; return { components: (j.components ?? []).map((x) => ({ customId: x.custom_id ?? x.customId })) }; }),
+      async edit(p) { events.push(`NACHRICHT BEARBEITEN #${ch.name}`); Object.assign(m, mkMsg(ch, p, authorId), { id: m.id, edit: m.edit, delete: m.delete }); return m; },
+      async delete() { events.push(`NACHRICHT LÖSCHEN #${ch.name}`); ch._msgs.delete(m.id); } };
+    return m;
+  };
   const mkCh = (name, type, parentId = null, extra = {}) => {
     const id = String(nid++);
-    const ch = { id, name, type, parentId, position: channels.filter((c) => (c.type === T.GuildCategory) === (type === T.GuildCategory)).size,
-      permissionOverwrites: { cache: new Collection(), edit: async (r) => { ch.permissionOverwrites.cache.set(r.id ?? r, {}); } },
+    const po = new Collection();
+    const ch = { id, name, type, parentId, topic: null, rateLimitPerUser: 0, userLimit: 0, _msgs: new Collection(),
+      position: channels.filter((c) => (c.type === T.GuildCategory) === (type === T.GuildCategory)).size,
+      permissionOverwrites: { cache: po,
+        edit: async (r) => { po.set(r.id ?? r, { allow: bits(), deny: bits() }); },
+        create: async (oid, opts) => { events.push(`RECHTE #${ch.name}`);
+          po.set(oid, { allow: bits(Object.keys(opts).filter((k) => opts[k] === true)), deny: bits(Object.keys(opts).filter((k) => opts[k] === false)) }); } },
       isThread: () => false, isTextBased: () => type !== T.GuildCategory,
+      get guild() { return guild; },
+      messages: { fetch: async (q) => { if (typeof q === 'string') { const m = ch._msgs.get(q); if (!m) throw new Error('Unknown Message'); return m; } return ch._msgs; } },
       async delete() { channels.delete(id); events.push(`LÖSCHEN ${type === T.GuildCategory ? '[Kategorie] ' : ''}${name}`); },
       async setParent(p) { events.push(`VERSCHIEBEN ${ch.name} -> ${channels.get(p)?.name}`); ch.parentId = p; },
       async setName(n) { events.push(`UMBENENNEN ${ch.name} -> ${n}`); ch.name = n; },
-      async send() { return {}; }, async createWebhook() { return { id: 'w' + nid++, token: 't' }; }, ...extra };
+      async setTopic(t) { events.push(`THEMA #${ch.name}`); ch.topic = t; },
+      async setRateLimitPerUser(n) { events.push(`SLOWMODE #${ch.name} ${n}`); ch.rateLimitPerUser = n; },
+      async setUserLimit(n) { events.push(`LIMIT ${ch.name} ${n}`); ch.userLimit = n; },
+      async send(p) { const m = mkMsg(ch, p); ch._msgs.set(m.id, m); events.push(`NACHRICHT #${ch.name}`); return m; },
+      async createWebhook(o) { const w = { id: 'w' + nid++, token: 't', channelId: id, name: o.name,
+        async edit() { events.push(`WEBHOOK BEARBEITEN ${o.name}`); }, async delete() { webhooks.delete(w.id); } };
+        webhooks.set(w.id, w); events.push(`WEBHOOK ${o.name}`); return w; },
+      ...extra };
     channels.set(id, ch); return ch;
   };
   // --- alter Server (Chaos-Struktur v1) ---
@@ -470,6 +509,16 @@ async function simulateAbgleich() {
     const c = cat(cname);
     for (const [n, key, type] of chs) { const ch = mkCh(n, type ?? T.GuildText, c.id); if (key) g.ids[`ch_${key}`] = ch.id; }
   }
+  const byName = (n) => channels.find((c) => c.name === n);
+  // alte Willy-Nachrichten (sollen bearbeitet werden, nicht doppelt gepostet) und eine fremde Nachricht
+  const alteStart = mkMsg(byName('start-hier-vielleicht'), { content: 'alt', components: [{ components: [{ custom_id: 'rules:open' }] }] });
+  byName('start-hier-vielleicht')._msgs.set(alteStart.id, alteStart);
+  const fremd = mkMsg(byName('wer-hat-meine-socke-gesehen'), { content: '🧦 hat jemand meine Socke?' }, 'user1');
+  byName('wer-hat-meine-socke-gesehen')._msgs.set(fremd.id, fremd);
+  // Sprachkanal, der gerade wegen "allein" umbenannt ist (voicenames.js)
+  const klassenzimmer = byName('🏫 Klassenzimmer');
+  klassenzimmer.name = '🎤 Tim redet mit sich selbst';
+  g.vcNamen = { [klassenzimmer.id]: '🏫 Klassenzimmer' };
   // alte Schule (6 Fächer, ohne Lehrerzimmer)
   const sc = cat('🏫 Unterricht (Anwesenheitspflicht)');
   g.schule = { ids: { category: sc.id, raeume: {}, webhooks: {} } };
@@ -485,14 +534,25 @@ async function simulateAbgleich() {
     id: 'gx-abgleich', name: 'Test', ownerId: 'owner', premiumTier: 0, systemChannelId: null, afkChannelId: null,
     client: { user: { id: 'bot' } },
     roles: { everyone: { id: 'everyone' }, cache: roles, fetch: async () => roles, setPositions: async () => {},
-      create: async (o) => { const r = { id: 'r' + nid++, name: o.name, position: 1, managed: false }; roles.set(r.id, r); return r; } },
+      create: async (o) => { const r = { id: 'r' + nid++, name: o.name, position: 1, managed: false, editable: true, hoist: Boolean(o.hoist),
+        colors: { primaryColor: o.colors?.primaryColor ?? 0 }, permissions: bits(o.permissions),
+        async edit(c) { events.push(`ROLLE ${r.name}`); Object.assign(r, c.colors ? { colors: c.colors } : {}, 'hoist' in c ? { hoist: c.hoist } : {}, c.name ? { name: c.name } : {}); } };
+        roles.set(r.id, r); return r; } },
     members: { me, fetch: async () => ({ displayName: 'Tim', roles: { cache: new Collection(), add: async () => {} } }) },
-    channels: { cache: channels, create: async (o) => { const ch = mkCh(o.name, o.type, o.parent ?? null); events.push(`ANLEGEN ${o.type === T.GuildCategory ? '[Kategorie] ' : ''}${o.name}`); return ch; },
+    channels: { cache: channels, create: async (o) => { const ch = mkCh(o.name, o.type, o.parent ?? null);
+      Object.assign(ch, { topic: o.topic ?? null, rateLimitPerUser: o.rateLimitPerUser ?? 0, userLimit: o.userLimit ?? 0 });
+      for (const ow of o.permissionOverwrites ?? []) ch.permissionOverwrites.cache.set(ow.id, { allow: bits(ow.allow), deny: bits(ow.deny) });
+      events.push(`ANLEGEN ${o.type === T.GuildCategory ? '[Kategorie] ' : ''}${o.name}`); return ch; },
       setPositions: async (arr) => { events.push(`SORTIEREN (${arr.length} Kategorien)`); for (const { channel, position } of arr) channels.get(channel).position = position; } },
     setSystemChannel: async (c) => { guild.systemChannelId = c.id; events.push(`SYSTEMKANAL -> ${c.name}`); },
     setAFKChannel: async (c) => { guild.afkChannelId = c.id; events.push(`AFK -> ${c.name}`); },
-    soundboardSounds: { fetch: async () => new Collection(), create: async () => {} },
+    soundboardSounds: { fetch: async () => sounds, create: async (o) => { const sd = { soundId: 'sd' + nid++, name: o.name,
+      async delete() { sounds.delete(sd.soundId); events.push(`SOUND LÖSCHEN ${o.name}`); } }; sounds.set(sd.soundId, sd); events.push(`SOUND ${o.name}`); return sd; } },
+    fetchWebhooks: async () => webhooks,
   };
+  // alter Sound mit gleichem Namen (unbekannte Version) -> wird ersetzt
+  const alterGong = { soundId: 'alt-gong', name: 'Schulgong', async delete() { sounds.delete('alt-gong'); events.push('SOUND LÖSCHEN Schulgong (alt)'); } };
+  sounds.set('alt-gong', alterGong);
   const log1 = await serverAbgleich(guild);
   assert.ok(log1.some((l) => l.includes('28 alte Witzkanäle')), 'Witzkanäle nicht (alle) gelöscht: ' + log1.join(' | '));
   const namen = [...channels.values()].map((c) => c.name);
@@ -500,9 +560,33 @@ async function simulateAbgleich() {
   for (const n of ['allgemein-2', 'kanal', 'nicht-allgemein', 'wer-hat-meine-socke-gesehen']) assert.ok(!namen.includes(n), `noch da: ${n}`);
   assert.equal(namen.filter((n) => n === 'allgemein').length, 1, '#allgemein doppelt');
   assert.ok(![...channels.values()].some((c) => c.type !== ChannelType.GuildCategory && !c.parentId), 'Kanal ohne Kategorie');
+  // Willys Nachrichten: alte Startnachricht bearbeitet statt doppelt, fremde Nachricht unberührt
+  assert.equal(byName('start-hier-vielleicht')._msgs.size, 1, 'Startnachricht doppelt');
+  assert.ok(byName('start-hier-vielleicht')._msgs.has(alteStart.id), 'alte Startnachricht hätte bearbeitet werden sollen');
+  assert.ok(byName('regeln')._msgs.has(fremd.id), 'fremde Nachricht in #regeln wurde gelöscht');
+  for (const n of ['regeln', 'rollen-lotterie', 'tickets-bitte-nicht-benutzen', '📜-team-kodex']) assert.ok([...byName(n)._msgs.values()].some((m) => m.author.id === 'bot'), `#${n} ohne Willy-Nachricht`);
+  // Einstellungen und Rechte
+  assert.equal(byName('schnell-chat').rateLimitPerUser, 21600, 'Slowmode fehlt');
+  assert.equal(byName('🚽 Klo (1 Person)').userLimit, 1, 'Platzlimit fehlt');
+  assert.equal(byName('regeln').topic, 'Die Regeln. Diesmal wirklich hier.', 'Beschreibung fehlt');
+  assert.ok(byName('regeln').permissionOverwrites.cache.has('everyone'), 'Rechte fehlen');
+  // umbenannter Sprachkanal: zurückbenannt statt doppelt angelegt
+  assert.equal(klassenzimmer.name, '🏫 Klassenzimmer');
+  assert.equal([...channels.values()].filter((c) => c.name.includes('Klassenzimmer')).length, 1, 'Klassenzimmer doppelt');
+  // Sounds: alter Schulgong ersetzt, alle da; Lehrer-Webhooks für alle 9 Räume + Lehrerzimmer
+  assert.ok(!sounds.has('alt-gong') && sounds.size === 8, `Sounds: ${sounds.size}`);
+  assert.equal(webhooks.size, 18, `Webhooks: ${webhooks.size}`);
   events.length = 0;
   await serverAbgleich(guild);
   assert.deepEqual(events, [], 'Zweiter Abgleich darf nichts mehr ändern: ' + events.join(' | '));
+  // Ändert sich etwas an der Vorlage, wird nur das angepasst
+  byName('regeln').topic = 'von Hand geändert';
+  byName('enten').rateLimitPerUser = 30; // z. B. Neustart mitten im Putz-Rundgang
+  [...byName('rollen-lotterie')._msgs.values()][0].content = 'veraltet';
+  g.inhalte.lottery.hash = 'alt';
+  events.length = 0;
+  await serverAbgleich(guild);
+  assert.deepEqual(events.sort(), ['NACHRICHT BEARBEITEN #rollen-lotterie', 'SLOWMODE #enten 0', 'THEMA #regeln'], 'Dritter Abgleich: ' + events.join(' | '));
 }
 
 // ---------------------------------------------------------------- Ticket-Knöpfe und Formular

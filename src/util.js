@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -79,3 +81,10 @@ export function parseTime(hhmm, fallback) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
   return m ? Number(m[1]) * 60 + Number(m[2]) : fallback;
 }
+
+/** Kurzer, stabiler Fingerabdruck (z. B. um zu merken, ob sich eine Nachricht oder Datei geändert hat). */
+export const kurzHash = (wert) =>
+  createHash('sha1')
+    .update(typeof wert === 'string' || Buffer.isBuffer(wert) ? wert : JSON.stringify(wert))
+    .digest('hex')
+    .slice(0, 16);

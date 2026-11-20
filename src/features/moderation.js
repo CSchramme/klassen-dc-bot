@@ -6,6 +6,7 @@ import { guildState, save } from '../storage.js';
 import { chance, logError, pick } from '../util.js';
 import { findChannel } from './roles.js';
 import { RAM_DIEBSTAHL, findInsider, insiderNames } from '../insider.js';
+import { zaehle } from '../chronik.js';
 
 const NO_PINGS = { parse: [] };
 const snarkCooldown = new Map(); // channelId -> Zeitstempel
@@ -34,6 +35,7 @@ function cooled(map, key, ms) {
 export async function strafeEintragen(guild, userId, grund, tatortId = null) {
   const g = guildState(guild.id);
   const strafe = chance(0.15) && insiderNames().length ? `Eine Schweigeminute für ${pick(insiderNames())}` : pick(STRAFEN);
+  zaehle(guild.id, 'strafen');
   const list = (g.strafregister[userId] ??= []);
   list.push({ grund, strafe, datum: new Date().toISOString() });
   if (list.length > 50) list.splice(0, list.length - 50);
@@ -100,6 +102,7 @@ export async function handleModeration(message) {
 
     // 2) Gänse sind serverweit verboten (§4)
     if (/g[aä]ns|🪿/i.test(text)) {
+      zaehle(message.guild.id, 'gaense');
       await deleteAndWarn(message, '🚨 **Gänse sind auf diesem Server verboten (§4).** Deine Nachricht wurde aus Sicherheitsgründen entfernt.', 'Erwähnung einer Gans (§4)');
       const seconds = config.moderation.timeoutSeconds;
       if (seconds > 0 && message.member?.moderatable) {
@@ -169,6 +172,7 @@ export async function handleModeration(message) {
       const gb = pick([1, 2, 4, 8, 16, 32]);
       g.ram ??= { total: 0, users: {} };
       g.ram.total += gb;
+      zaehle(message.guild.id, 'ramGB', gb);
       g.ram.users[message.author.id] = (g.ram.users[message.author.id] ?? 0) + gb;
       save();
       message.react('💾').catch(() => {});

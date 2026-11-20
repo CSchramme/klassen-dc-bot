@@ -14,6 +14,7 @@ import {
 import { chance, pick, randInt, shuffle, sleep, truncate, logError } from '../util.js';
 import { findChannel, findRole } from './roles.js';
 import { INSIDER_CAPTCHA } from '../insider.js';
+import { zaehle } from '../chronik.js';
 
 const STEPS = ['robot', 'grid', 'math', 'reverse', 'prime', 'loading', 'confirm', 'final'];
 const SESSION_TTL = 30 * 60 * 1000;
@@ -285,6 +286,7 @@ async function finish(interaction, session, respond) {
     });
   }
   const seconds = Math.round((Date.now() - session.startedAt) / 1000);
+  zaehle(guild.id, 'neueMitglieder');
   const regeln = findChannel(guild, 'realRules');
   return respond({
     embeds: [

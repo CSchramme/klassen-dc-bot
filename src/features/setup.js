@@ -7,6 +7,7 @@ import {
   EmbedBuilder,
   MessageFlags,
   PermissionFlagsBits as P,
+  PermissionsBitField,
 } from 'discord.js';
 import { BOT_NICKNAME, LAYOUT_VERSION, LOTTERY_ROLES, ROLES, SERVER_NAME } from './layout.js';
 import { layoutAbgleich } from './abgleich.js';
@@ -60,10 +61,37 @@ export function overwrites(guild, ids, sicht, nurLesen) {
   return [...map.values()].map((o) => ({ id: o.id, allow: [...o.allow], deny: [...o.deny].filter((p) => !o.allow.has(p)) }));
 }
 
-async function ensureRole(guild, def, extra = {}) {
-  const existing = guild.roles.cache.find((r) => r.name === def.name);
-  if (existing) return existing;
-  return guild.roles.create({ name: def.name, colors: { primaryColor: def.color }, permissions: [], reason: 'Dummes Setup', ...extra });
+/**
+ * Sucht eine Rolle (gemerkte ID, sonst Name) oder legt sie an. Vorhandene Rollen werden auf den
+ * neuesten Stand gebracht: Name, Farbe, "getrennt anzeigen" und die nötigen Rechte
+ * (zusätzliche Rechte, die ihr von Hand vergeben habt, bleiben).
+ */
+async function ensureRole(guild, def, extra = {}, stand = null, idKey = null) {
+  const g = guildState(guild.id);
+  const existing = (idKey && guild.roles.cache.get(g.ids[idKey])) || guild.roles.cache.find((r) => r.name === def.name);
+  if (!existing) {
+    stand?.neu.push(def.name);
+    return guild.roles.create({ name: def.name, colors: { primaryColor: def.color }, permissions: [], reason: 'Dummes Setup', ...extra });
+  }
+  if (existing.managed || existing.editable === false) return existing;
+  const changes = {};
+  if (existing.name !== def.name) changes.name = def.name;
+  const farbe = existing.colors?.primaryColor ?? existing.color;
+  if (def.color !== undefined && farbe !== def.color) changes.colors = { primaryColor: def.color };
+  if (extra.hoist !== undefined && existing.hoist !== extra.hoist) changes.hoist = extra.hoist;
+  if (extra.permissions?.length && existing.permissions) {
+    const noetig = PermissionsBitField.resolve(extra.permissions);
+    if ((existing.permissions.bitfield & noetig) !== noetig) changes.permissions = existing.permissions.bitfield | noetig;
+  }
+  if (Object.keys(changes).length) {
+    try {
+      await existing.edit({ ...changes, reason: 'Abgleich' });
+      stand?.geaendert.push(def.name);
+    } catch (err) {
+      logError(`setup:rolle:${def.name}`, err);
+    }
+  }
+  return existing;
 }
 
 /**
@@ -72,15 +100,19 @@ async function ensureRole(guild, def, extra = {}) {
  */
 export async function ensureRoles(guild, log) {
   const g = guildState(guild.id);
-  const owner = await ensureRole(guild, ROLES.owner, { hoist: true, permissions: [P.Administrator] });
-  const coOwner = await ensureRole(guild, ROLES.coOwner, { hoist: true, permissions: [P.Administrator] });
-  const team = await ensureRole(guild, ROLES.team, {
-    hoist: true,
-    permissions: [P.ManageMessages, P.ModerateMembers, P.MuteMembers, P.MoveMembers],
-  });
-  const bots = await ensureRole(guild, ROLES.bots, { hoist: true });
-  const verified = await ensureRole(guild, ROLES.verified);
-  for (const r of LOTTERY_ROLES) await ensureRole(guild, r);
+  const stand = { neu: [], geaendert: [] };
+  const owner = await ensureRole(guild, ROLES.owner, { hoist: true, permissions: [P.Administrator] }, stand, 'role_owner');
+  const coOwner = await ensureRole(guild, ROLES.coOwner, { hoist: true, permissions: [P.Administrator] }, stand, 'role_coOwner');
+  const team = await ensureRole(
+    guild,
+    ROLES.team,
+    { hoist: true, permissions: [P.ManageMessages, P.ModerateMembers, P.MuteMembers, P.MoveMembers] },
+    stand,
+    'role_team',
+  );
+  const bots = await ensureRole(guild, ROLES.bots, { hoist: true }, stand, 'role_bots');
+  const verified = await ensureRole(guild, ROLES.verified, {}, stand, 'role_verified');
+  for (const r of LOTTERY_ROLES) await ensureRole(guild, r, {}, stand);
   g.ids.role_bots = bots.id;
   g.ids.role_owner = owner.id;
   g.ids.role_coOwner = coOwner.id;
@@ -88,6 +120,8 @@ export async function ensureRoles(guild, log) {
   g.ids.role_team = team.id;
   save();
   log.push(`🎭 ${5 + LOTTERY_ROLES.length} Rollen erstellt (bzw. wiederverwendet)`);
+  if (stand.neu.length) log.push(`🎭 Neue Rollen: ${stand.neu.join(', ')}`);
+  if (stand.geaendert.length) log.push(`🎨 Rollen aktualisiert: ${stand.geaendert.join(', ')}`);
 
   // Reihenfolge: direkt unter meiner eigenen Rolle (höher darf ein Bot keine Rollen schieben)
   const order = [owner, coOwner, bots, team, verified];
@@ -97,7 +131,8 @@ export async function ensureRoles(guild, log) {
     // Rollen, die schon über mir stehen (z. B. von Hand hochgezogen), kann ich nicht anfassen
     const blocked = order.filter((r) => r.position >= myRole.position);
     const movable = order.filter((r) => r.position < myRole.position);
-    if (movable.length && myRole.position > movable.length) {
+    const schonSortiert = movable.every((role, i) => role.position === myRole.position - 1 - i);
+    if (movable.length && myRole.position > movable.length && !schonSortiert) {
       await guild.roles.setPositions(movable.map((role, i) => ({ role: role.id, position: myRole.position - 1 - i })));
       log.push(`📶 Rollen sortiert: ${movable.map((r) => r.name.split(' ')[1] ?? r.name).join(' > ')}`);
     } else if (movable.length) {
@@ -285,7 +320,7 @@ export async function serverAbgleich(guild) {
   const log = [];
   const rollenLog = [];
   await ensureRoles(guild, rollenLog);
-  log.push(...rollenLog.filter((l) => l.startsWith('⚠️')));
+  log.push(...rollenLog.filter((l) => l.startsWith('⚠️') || l.startsWith('🎨') || l.startsWith('🎭 Neue') || l.startsWith('📶')));
   const { byKey } = await layoutAbgleich(guild, log, overwrites);
   log.push(...(await schulAbgleich(guild, { leise: true })));
   if (byKey.system && guild.systemChannelId !== byKey.system.id) await guild.setSystemChannel(byKey.system).catch(() => {});

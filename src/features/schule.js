@@ -17,7 +17,8 @@ import {
 } from 'discord.js';
 import { config } from '../config.js';
 import { guildState, save } from '../storage.js';
-import { localNow, logError, parseTime, pick, shuffle, truncate } from '../util.js';
+import { kurzHash, localNow, logError, parseTime, pick, shuffle, truncate } from '../util.js';
+import { rechteAbgleich } from './abgleich.js';
 import { askAI } from '../ai.js';
 import { FACH_KEYS, FAECHER, NOTEN_WORTE, STRAFSATZ } from './schule-daten.js';
 import { findRole } from './roles.js';
@@ -26,6 +27,7 @@ import { automatikAn } from './events.js';
 import { hausaufgabe } from './fun.js';
 import { alleLehrerBots, einladungslink, lehrerBot, tokenFuer } from '../lehrer-bots.js';
 import { SERIOUS_CHAT_REPLY, SERIOUS_WORDS } from '../ernst.js';
+import { siegerPunkt, zaehle } from '../chronik.js';
 
 const NO_PINGS = { parse: [] };
 const MIN = 60_000;
@@ -233,6 +235,7 @@ export function echteNoten(guildId, userId) {
 export async function klassenbuchEintrag(guild, userId, grund) {
   const s = schule(guild.id);
   s.klassenbuch.push({ userId, grund, datum: Date.now() });
+  zaehle(guild.id, 'klassenbuch');
   if (s.klassenbuch.length > 300) s.klassenbuch.splice(0, s.klassenbuch.length - 300);
   const st = schueler(s, userId);
   st.eintraege = (st.eintraege ?? 0) + 1;
@@ -257,6 +260,7 @@ async function nachsitzen(guild, userId) {
   if (!member) return;
   await member.roles.add(role, 'Nachsitzen (3 Klassenbuch-Einträge)').catch((err) => logError('schule:nachsitzen', err));
   s.nachsitzen[userId] = { bis: Date.now() + NACHSITZEN_MS, geschrieben: 0 };
+  zaehle(guild.id, 'nachsitzen');
   save();
   await raum
     .send({
@@ -420,6 +424,7 @@ export async function stundeBeenden(guild, abgebrochen = false) {
   const s = schule(guild.id);
   const fach = lesson.fach;
   s.gehalten[fach] = (s.gehalten[fach] ?? 0) + 1;
+  zaehle(guild.id, 'stunden');
   for (const [userId, { zuSpaet }] of lesson.anwesend) {
     const st = fachStats(schueler(s, userId), fach);
     st.anwesend++;
@@ -482,6 +487,7 @@ export async function handleSchule(interaction, action, a1, a2) {
     }
     const erster = q.richtige.length === 0;
     q.richtige.push(interaction.user.id);
+    if (erster) siegerPunkt(guild.id, interaction.user.id);
     lesson.punkte.set(interaction.user.id, (lesson.punkte.get(interaction.user.id) ?? 0) + (erster ? 2 : 1));
     await interaction.reply({ content: erster ? '✅ Richtig – und als Erste:r! **+2 Punkte**' : '✅ Richtig! **+1 Punkt**', ...ephemeral });
     if (spaet) await klassenbuchEintrag(guild, interaction.user.id, `Zu spät zum Unterricht (${FAECHER[lesson.fach].name})`);
@@ -604,7 +610,14 @@ export async function schulAbgleich(guild, { leise = false } = {}) {
   // Rollen
   const rolle = async (name, color, hoist = false) => {
     const vorhanden = guild.roles.cache.get(name === '⛓️ Nachsitzen' ? s.ids.roleNachsitzen : s.ids.roleSprecher) ?? guild.roles.cache.find((r) => r.name === name);
-    if (vorhanden) return vorhanden;
+    if (vorhanden) {
+      const farbe = vorhanden.colors?.primaryColor ?? vorhanden.color;
+      if (vorhanden.editable && (vorhanden.name !== name || farbe !== color || vorhanden.hoist !== hoist)) {
+        await vorhanden.edit({ name, colors: { primaryColor: color }, hoist, reason: 'Abgleich' }).catch((err) => logError('schule:rolle', err));
+        log.push(`🎨 Rolle „${name}“ aktualisiert`);
+      }
+      return vorhanden;
+    }
     log.push(`🎭 Rolle „${name}“ angelegt`);
     return guild.roles.create({ name, colors: { primaryColor: color }, hoist, permissions: [], reason: 'Schule' });
   };
@@ -615,9 +628,18 @@ export async function schulAbgleich(guild, { leise = false } = {}) {
 
   // Kategorie
   let cat = guild.channels.cache.get(s.ids.category) ?? guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && c.name.startsWith('🏫 Unterricht'));
+  const KATEGORIE = '🏫 Unterricht (Anwesenheitspflicht)';
+  let rechte = 0;
+  let angepasst = 0;
   if (!cat) {
-    cat = await guild.channels.create({ name: '🏫 Unterricht (Anwesenheitspflicht)', type: ChannelType.GuildCategory, permissionOverwrites: sicht(false) });
+    cat = await guild.channels.create({ name: KATEGORIE, type: ChannelType.GuildCategory, permissionOverwrites: sicht(false) });
     log.push('🏫 Kategorie „Unterricht“ angelegt');
+  } else {
+    if (cat.name !== KATEGORIE) {
+      await cat.setName(KATEGORIE, 'Abgleich').catch((err) => logError('schule:kat-name', err));
+      angepasst++;
+    }
+    if (await rechteAbgleich(cat, sicht(false))) rechte++;
   }
   s.ids.category = cat.id;
 
@@ -627,10 +649,56 @@ export async function schulAbgleich(guild, { leise = false } = {}) {
     if (!ch) {
       ch = await guild.channels.create({ name, type: ChannelType.GuildText, parent: cat.id, topic, permissionOverwrites: [...sicht(nurLesen), ...extra] });
       neu = true;
-    } else if (ch.parentId !== cat.id) {
-      await ch.setParent(cat.id, { lockPermissions: false }).catch(() => {});
+    } else {
+      if (ch.parentId !== cat.id) await ch.setParent(cat.id, { lockPermissions: false }).catch(() => {});
+      if (ch.name !== name) {
+        await ch.setName(name, 'Abgleich').catch((err) => logError('schule:name', err));
+        angepasst++;
+      }
+      if ((ch.topic ?? '') !== topic) {
+        await ch.setTopic(topic, 'Abgleich').catch((err) => logError('schule:thema', err));
+        angepasst++;
+      }
+      if (await rechteAbgleich(ch, [...sicht(nurLesen), ...extra])) rechte++;
     }
     return { ch, neu };
+  };
+
+  // Lehrer-Webhooks: fehlende anlegen, Name und Bild aktuell halten
+  const alleWebhooks = await guild.fetchWebhooks?.().catch(() => null);
+  let whNeu = 0;
+  let whAktualisiert = 0;
+  const webhookAbgleich = async (map, fach, ch, reason) => {
+    const f = FAECHER[fach];
+    const name = `${f.lehrer} (${f.name})`;
+    try {
+      const avatar = fs.readFileSync(path.join(AVATARE, f.avatar));
+      const stand = kurzHash(Buffer.concat([Buffer.from(`${name}|`), avatar]));
+      let eintrag = map[fach];
+      const vorhanden = eintrag && alleWebhooks?.get(eintrag.id);
+      if (eintrag && alleWebhooks && (!vorhanden || vorhanden.channelId !== ch.id)) {
+        // gelöscht oder hängt noch an einem alten Kanal
+        if (vorhanden) await vorhanden.delete('Falscher Kanal').catch(() => {});
+        delete map[fach];
+        eintrag = null;
+      }
+      if (!eintrag) {
+        const wh = await ch.createWebhook({ name, avatar, reason });
+        map[fach] = { id: wh.id, token: wh.token, stand };
+        whNeu++;
+      } else if (eintrag.stand !== stand) {
+        const client = vorhanden ? null : new WebhookClient({ id: eintrag.id, token: eintrag.token });
+        try {
+          await (vorhanden ?? client).edit({ name, avatar, reason: 'Abgleich' });
+        } finally {
+          client?.destroy();
+        }
+        eintrag.stand = stand;
+        whAktualisiert++;
+      }
+    } catch (err) {
+      logError(`schule:webhook:${fach}`, err);
+    }
   };
 
   // Fachräume + Lehrer-Webhooks
@@ -642,14 +710,7 @@ export async function schulAbgleich(guild, { leise = false } = {}) {
     const { ch, neu } = await sicherstellen(s.ids.raeume[fach], f.raum, `${f.emoji} ${f.name} bei ${f.lehrer}. Unterricht laut /stundenplan.`, false);
     s.ids.raeume[fach] = ch.id;
     if (neu) neueFaecher.push(f.name);
-    if (!s.ids.webhooks[fach]) {
-      try {
-        const wh = await ch.createWebhook({ name: `${f.lehrer} (${f.name})`, avatar: fs.readFileSync(path.join(AVATARE, f.avatar)), reason: 'Lehrer' });
-        s.ids.webhooks[fach] = { id: wh.id, token: wh.token };
-      } catch (err) {
-        logError('schule:webhook', err);
-      }
-    }
+    await webhookAbgleich(s.ids.webhooks, fach, ch, 'Lehrer');
   }
   if (neueFaecher.length) log.push(`🏫 Neue Fachräume: ${neueFaecher.join(', ')}`);
 
@@ -669,17 +730,12 @@ export async function schulAbgleich(guild, { leise = false } = {}) {
   s.ids.lehrerzimmer = lz.ch.id;
   if (lz.neu) log.push('☕ Lehrerzimmer angelegt');
   s.ids.lzWebhooks ??= {};
-  for (const fach of FACH_KEYS) {
-    if (s.ids.lzWebhooks[fach]) continue;
-    const f = FAECHER[fach];
-    try {
-      const wh = await lz.ch.createWebhook({ name: `${f.lehrer} (${f.name})`, avatar: fs.readFileSync(path.join(AVATARE, f.avatar)), reason: 'Lehrerzimmer' });
-      s.ids.lzWebhooks[fach] = { id: wh.id, token: wh.token };
-    } catch (err) {
-      logError('schule:lz-webhook', err);
-    }
-  }
+  for (const fach of FACH_KEYS) await webhookAbgleich(s.ids.lzWebhooks, fach, lz.ch, 'Lehrerzimmer');
   save();
+  if (angepasst) log.push(`⚙️ ${angepasst} Schul-Kanäle angepasst (Name, Beschreibung)`);
+  if (rechte) log.push(`🔐 Rechte in ${rechte} Schul-Kanälen angepasst`);
+  if (whNeu) log.push(`🪝 ${whNeu} Lehrer-Webhooks angelegt`);
+  if (whAktualisiert) log.push(`🪝 ${whAktualisiert} Lehrer-Webhooks aktualisiert (Name/Bild)`);
 
   // Reihenfolge im Unterricht: Fachräume, dann Klassenbuch, Nachsitzen, Lehrerzimmer
   const soll = [...FACH_KEYS.map((f) => s.ids.raeume[f]), s.ids.klassenbuch, s.ids.nachsitzen, s.ids.lehrerzimmer]

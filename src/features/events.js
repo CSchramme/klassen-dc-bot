@@ -8,6 +8,7 @@ import { LAYOUT } from './layout.js';
 import { findChannel } from './roles.js';
 import { humans, raid } from './chaos.js';
 import { strafeEintragen } from './moderation.js';
+import { merke, zaehle } from '../chronik.js';
 import { FEUERALARM_TEXT, ausrede, durchsage, hausaufgabe, leetDurchsage, spitzname, vertretungsplanEmbed, zeugnisDaten, zeugnisEmbed } from './fun.js';
 import { zeugnisPdf } from './zeugnis-pdf.js';
 import { echteNoten } from './schule.js';
@@ -97,6 +98,7 @@ async function postVertretungsplan(guild) {
 async function postDurchsage(guild) {
   const ch = activeChat(guild, 2 * HOUR) ?? mainChat(guild);
   if (!ch) return 'retry';
+  zaehle(guild.id, 'durchsagen');
   await ch.send({ content: durchsage(), allowedMentions: NO_PINGS });
 }
 
@@ -124,6 +126,7 @@ export async function feueralarm(guild) {
   );
   if (rooms.size === 0) return '🚨 Feueralarm! … Aber es ist niemand im Sprachkanal. Der Alarm hallt durch leere Flure.';
 
+  zaehle(guild.id, 'feueralarme');
   for (const room of rooms.values()) room.send({ content: FEUERALARM_TEXT, allowedMentions: NO_PINGS }).catch(() => {});
   const loudest = [...rooms.values()].sort((a, b) => humans(b) - humans(a))[0];
   await raid(loudest, { filter: /feueralarm|alarm|sirene|siren/i, count: 1, quick: true }).catch((err) => logError('feueralarm:sirene', err));
@@ -282,6 +285,7 @@ export async function namensrouletteDrehen(guild) {
         '\nIch kontrolliere das in **10 Minuten**. 👀';
     }
     save();
+    merke(guild.id, 'spitznamen', name);
     await mainChat(guild)
       ?.send({ content: `🎡 **Namens-Roulette:** <@${id}> heißt ab jetzt 24 Stunden lang **${name}**. Herzlichen Glückwunsch!${hinweis}`, allowedMentions: { users: [id] } })
       .catch(() => {});
@@ -314,6 +318,7 @@ export async function kaffeepauseStarten(guild, minuten = 10) {
   z.pauseBis = Date.now() + minuten * 60_000;
   z.pauseEnde = false;
   save();
+  zaehle(guild.id, 'kaffeepausen');
   guild.client.user.setPresence({ status: 'idle', activities: [{ type: ActivityType.Custom, name: 'custom', state: '☕ Kaffeepause' }] });
   await mainChat(guild)
     ?.send({ content: `☕ **Willy macht jetzt ${minuten} Minuten Kaffeepause.** Befehle werden danach wieder bearbeitet. Vielleicht.`, allowedMentions: NO_PINGS })

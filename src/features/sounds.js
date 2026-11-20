@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { EmbedBuilder, GuildPremiumTier, MessageFlags } from 'discord.js';
-import { logError } from '../util.js';
+import { guildState, save } from '../storage.js';
+import { kurzHash, logError } from '../util.js';
 
 const DIR = path.resolve('assets', 'sounds');
 
@@ -21,29 +22,72 @@ export const SOUNDS = [
 // Soundboard-Plätze je nach Boost-Stufe
 const LIMITS = { [GuildPremiumTier.None]: 8, [GuildPremiumTier.Tier1]: 24, [GuildPremiumTier.Tier2]: 36, [GuildPremiumTier.Tier3]: 48 };
 
+const fingerabdruck = new Map(); // Datei -> Hash (Datei + Name + Emoji + Lautstärke)
+function soundHash(s) {
+  if (!fingerabdruck.has(s.file)) {
+    fingerabdruck.set(s.file, kurzHash(Buffer.concat([fs.readFileSync(path.join(DIR, s.file)), Buffer.from(`|${s.name}|${s.emoji}|${s.volume}`)])));
+  }
+  return fingerabdruck.get(s.file);
+}
+
 /**
- * Lädt alle fehlenden Sounds hoch, soweit Plätze frei sind. Gibt Textzeilen fürs Protokoll zurück.
- * replace: Willys Sounds, die schon da sind, vorher löschen (z. B. nach einem Update der Sounds).
+ * Bringt Willys Sounds auf den neuesten Stand und lädt fehlende hoch, soweit Plätze frei sind.
+ * Willy merkt sich pro Sound, welche Version hochgeladen ist. Hat sich ein Sound geändert
+ * (neue Datei, Name, Emoji, Lautstärke), wird der alte gelöscht und der neue hochgeladen.
+ * replace: alle Sounds von Willy auf jeden Fall neu hochladen. Gibt Textzeilen fürs Protokoll zurück.
  */
 export async function uploadSounds(guild, { replace = false } = {}) {
+  const g = guildState(guild.id);
+  const stand = (g.soundStand ??= {}); // Datei -> { id, hash }
   let existing = await guild.soundboardSounds.fetch();
-  if (replace) {
-    const ours = new Set(SOUNDS.map((s) => s.name.toLowerCase()));
-    for (const sound of existing.values()) {
-      if (ours.has(sound.name.toLowerCase())) await sound.delete('Willys Sounds werden ersetzt').catch((err) => logError('sounds:delete', err));
+  const finde = (s) => existing.find((x) => stand[s.file]?.id && x.soundId === stand[s.file].id) ?? existing.find((x) => x.name.toLowerCase() === s.name.toLowerCase());
+  // Sounds mit gleichem Namen, die jemand anderes hochgeladen hat, fasst Willy nicht an
+  const fremd = (x) => Boolean(x.user && guild.client?.user && x.user.id !== guild.client.user.id);
+
+  // Veraltete Versionen von Willys Sounds entfernen
+  const erneuern = new Set();
+  let geloescht = false;
+  for (const s of SOUNDS) {
+    const vorhanden = finde(s);
+    if (!vorhanden || fremd(vorhanden)) continue;
+    const aktuell = !replace && stand[s.file]?.id === vorhanden.soundId && stand[s.file]?.hash === soundHash(s);
+    if (aktuell) continue;
+    try {
+      await vorhanden.delete(replace ? 'Willys Sounds werden ersetzt' : 'Neue Version');
+      erneuern.add(s.file);
+      geloescht = true;
+    } catch (err) {
+      logError('sounds:delete', err);
     }
+  }
+  // Sounds, die es bei Willy nicht mehr gibt
+  for (const [file, st] of Object.entries(stand)) {
+    if (SOUNDS.some((s) => s.file === file)) continue;
+    const alt = existing.find((x) => x.soundId === st.id);
+    if (alt) await alt.delete('Gibt es nicht mehr').catch((err) => logError('sounds:delete', err));
+    delete stand[file];
+    geloescht = true;
+  }
+  if (geloescht) {
+    save();
     existing = await guild.soundboardSounds.fetch();
   }
-  const names = new Set(existing.map((s) => s.name.toLowerCase()));
+
   const limit = LIMITS[guild.premiumTier] ?? 8;
   let free = limit - existing.size;
   const uploaded = [];
+  const renewed = [];
   const already = [];
   const noSpace = [];
   const failed = [];
 
   for (const s of SOUNDS) {
-    if (names.has(s.name.toLowerCase())) {
+    const vorhanden = finde(s);
+    if (vorhanden) {
+      if (stand[s.file]?.id !== vorhanden.soundId && !fremd(vorhanden)) {
+        stand[s.file] = { id: vorhanden.soundId, hash: soundHash(s) }; // gleicher Name, von Willy übernommen
+        save();
+      }
       already.push(s);
       continue;
     }
@@ -52,7 +96,7 @@ export async function uploadSounds(guild, { replace = false } = {}) {
       continue;
     }
     try {
-      await guild.soundboardSounds.create({
+      const sound = await guild.soundboardSounds.create({
         file: fs.readFileSync(path.join(DIR, s.file)),
         contentType: 'audio/mpeg',
         name: s.name,
@@ -60,7 +104,9 @@ export async function uploadSounds(guild, { replace = false } = {}) {
         emojiName: s.emoji,
         reason: 'Willys Sounds',
       });
-      uploaded.push(s);
+      if (sound?.soundId) stand[s.file] = { id: sound.soundId, hash: soundHash(s) };
+      save();
+      (erneuern.has(s.file) ? renewed : uploaded).push(s);
       free--;
     } catch (err) {
       logError(`sounds:${s.name}`, err);
@@ -71,6 +117,7 @@ export async function uploadSounds(guild, { replace = false } = {}) {
   const fmt = (list) => list.map((s) => `${s.emoji} ${s.name}`).join(', ');
   const lines = [];
   if (uploaded.length) lines.push(`🔊 Hochgeladen: ${fmt(uploaded)}`);
+  if (renewed.length) lines.push(`🔊 Neue Version hochgeladen: ${fmt(renewed)}`);
   if (already.length) lines.push(`✅ Schon da: ${fmt(already)}`);
   if (noSpace.length) {
     lines.push(

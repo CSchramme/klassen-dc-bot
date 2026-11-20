@@ -20,6 +20,7 @@ import { askAI } from '../ai.js';
 import { istPause, pauseText } from './events.js';
 import { lehrerKontext } from './schule.js';
 import { SERIOUS_CHAT_REPLY, SERIOUS_WORDS } from '../ernst.js';
+import { zaehle } from '../chronik.js';
 import { guildState, save } from '../storage.js';
 import { logError, pick, sleep, truncate } from '../util.js';
 import { findChannel, findRole } from './roles.js';
@@ -301,6 +302,7 @@ async function createTicket(interaction) {
     createdAt: Date.now(),
   };
   g.tickets[channel.id] = ticket;
+  zaehle(guild.id, 'tickets');
   save();
 
   await channel.send({
