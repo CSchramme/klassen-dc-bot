@@ -142,6 +142,78 @@ export const FAECHER = {
   },
 };
 
+Object.assign(FAECHER, {
+  chemie: {
+    name: 'Chemie',
+    emoji: '🧪',
+    raum: 'raum-107-chemie',
+    lehrer: 'Herr Explosion',
+    avatar: 'chemie.png',
+    persona: 'ein Chemielehrer mit leicht angesengten Augenbrauen, der jedes Experiment mit „Das sollte eigentlich nicht knallen“ beginnt',
+    lektionen: [
+      'Heute: Wasser ist H₂O. Zwei Wasserstoff, ein Sauerstoff. Wer mehr Sauerstoff dazugibt, bekommt Wasserstoffperoxid. Wer mehr Kaffee dazugibt, bekommt Willy.',
+      'Thema: Das Periodensystem. Es hat über 100 Elemente. Das wichtigste Element im Schulalltag fehlt allerdings: das Element der Überraschung.',
+      'Heute lernen wir: Sicherheit zuerst. Schutzbrille auf! Ich trage meine seit dem Vorfall 2019 auch nachts.',
+    ],
+    fragen: [
+      { q: 'Wofür steht H₂O?', a: 'Wasser', wrong: ['Wasserstoff', 'Heliumoxid', 'Hausaufgaben 2 Ordner'] },
+      { q: 'Was ist das chemische Zeichen für Gold?', a: 'Au', wrong: ['Go', 'Gd', 'G'] },
+      { q: 'Welches Gas brauchen Feuer zum Brennen?', a: 'Sauerstoff', wrong: ['Stickstoff', 'Helium', 'Applaus'] },
+      { q: 'Welchen pH-Wert hat neutrales Wasser?', a: '7', wrong: ['0', '14', '42'] },
+      { q: 'Was ist NaCl?', a: 'Kochsalz', wrong: ['Zucker', 'Natron', 'Nachtclub'] },
+      { q: 'Welches Element hat das Zeichen O?', a: 'Sauerstoff', wrong: ['Osmium', 'Gold', 'Oktopus'] },
+      { q: 'Was trägt man im Chemieraum zum Schutz der Augen?', a: 'Schutzbrille', wrong: ['Sonnenbrille', 'Taucherbrille', 'Nichts, Augen zu'] },
+      { q: 'Was entsteht, wenn Eisen rostet?', a: 'Eisenoxid', wrong: ['Gold', 'Stahl', 'Eisensalat'] },
+    ],
+  },
+  musik: {
+    name: 'Musik',
+    emoji: '🎵',
+    raum: 'raum-108-musik',
+    lehrer: 'Frau Dur-Moll',
+    avatar: 'musik.png',
+    persona: 'eine Musiklehrerin, die jeden Satz singen möchte, die Blockflöte für das wichtigste Instrument der Welt hält und Soundboard-Sounds für zeitgenössische Kunst',
+    lektionen: [
+      'Heute: Die Tonleiter. Do, Re, Mi, Fa, So, La, Ti, Do. Wer jetzt einen Ohrwurm hat: gern geschehen.',
+      'Thema: Takt. Ein 4/4-Takt hat vier Viertel. Ein Willy-Takt hat drei Viertel Kaffee und ein Viertel Pause.',
+      'Heute hören wir moderne Musik: die Feueralarm-Sirene. Achtet auf die Dynamik. Und auf den Notausgang.',
+    ],
+    fragen: [
+      { q: 'Wie viele Linien hat ein Notensystem?', a: '5', wrong: ['4', '6', '7'] },
+      { q: 'Welches Instrument hat 88 Tasten?', a: 'Klavier', wrong: ['Gitarre', 'Blockflöte', 'Tastatur'] },
+      { q: 'Wer komponierte die „Mondscheinsonate“?', a: 'Beethoven', wrong: ['Mozart', 'Bach', 'Willy'] },
+      { q: 'Wie viele Viertelnoten passen in einen 4/4-Takt?', a: '4', wrong: ['3', '8', '1'] },
+      { q: 'Wie heißt ein sehr leises Spielen?', a: 'pianissimo', wrong: ['fortissimo', 'allegro', 'flüsterissimo'] },
+      { q: 'Wie viele Saiten hat eine normale Gitarre?', a: '6', wrong: ['4', '5', '12'] },
+      { q: 'Welches Zeichen erhöht einen Ton um einen Halbton?', a: 'Kreuz (♯)', wrong: ['b (♭)', 'Punkt', 'Ausrufezeichen'] },
+      { q: 'Woher kam Mozart?', a: 'Salzburg', wrong: ['Berlin', 'Wien (geboren)', 'Raum 204'] },
+    ],
+  },
+  kunst: {
+    name: 'Kunst',
+    emoji: '🎨',
+    raum: 'raum-109-kunst',
+    lehrer: 'Herr Pinselstrich',
+    avatar: 'kunst.png',
+    persona: 'ein Kunstlehrer, der alles als „sehr ausdrucksstark“ bezeichnet, auch Kaffeeflecken, und nur in Farben denkt',
+    lektionen: [
+      'Heute: Die Grundfarben. Rot, Gelb und Blau. Mischt man alle zusammen, kommt Braun raus. Wie bei meinem Kaffee. Kunst ist überall.',
+      'Thema: Das Selbstporträt. Malt euch selbst. Wer keine Zeit hat: Ein Kreis mit zwei Punkten ist auch sehr ausdrucksstark.',
+      'Heute lernen wir: Die Mona Lisa hängt im Louvre in Paris. Das Klassenfoto hängt in #allgemein. Beides ist Kunst. Eins davon mehr.',
+    ],
+    fragen: [
+      { q: 'Welche Farbe entsteht aus Blau und Gelb?', a: 'Grün', wrong: ['Lila', 'Orange', 'Kariert'] },
+      { q: 'Wer malte die Mona Lisa?', a: 'Leonardo da Vinci', wrong: ['Picasso', 'Van Gogh', 'Herr Pinselstrich'] },
+      { q: 'Was sind die drei Grundfarben (Malkasten)?', a: 'Rot, Gelb, Blau', wrong: ['Rot, Grün, Blau', 'Schwarz, Weiß, Grau', 'Ente, Gans, Huhn'] },
+      { q: 'Welcher Maler schnitt sich der Legende nach ein Ohr ab?', a: 'Van Gogh', wrong: ['Monet', 'Dürer', 'Banksy'] },
+      { q: 'Was mischt man, um Orange zu bekommen?', a: 'Rot und Gelb', wrong: ['Blau und Gelb', 'Rot und Blau', 'Orange und Saft'] },
+      { q: 'Wo hängt die Mona Lisa?', a: 'Im Louvre (Paris)', wrong: ['Im Vatikan', 'In London', 'Im Lehrerzimmer'] },
+      { q: 'Wie heißt ein Bild von sich selbst?', a: 'Selbstporträt', wrong: ['Selfie-Skizze', 'Landschaft', 'Stillleben'] },
+      { q: 'Welche Farbe entsteht aus Rot und Blau?', a: 'Lila', wrong: ['Grün', 'Braun', 'Rotblau'] },
+    ],
+  },
+});
+
 export const FACH_KEYS = Object.keys(FAECHER);
 
 export const NOTEN_WORTE = ['', 'sehr gut', 'gut', 'befriedigend', 'ausreichend', 'mangelhaft', 'ungenügend'];

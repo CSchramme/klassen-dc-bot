@@ -285,7 +285,7 @@ async function finish(interaction, session, respond) {
     });
   }
   const seconds = Math.round((Date.now() - session.startedAt) / 1000);
-  const fakeRules = findChannel(guild, 'fakeRules');
+  const regeln = findChannel(guild, 'realRules');
   return respond({
     embeds: [
       new EmbedBuilder()
@@ -293,7 +293,7 @@ async function finish(interaction, session, respond) {
         .setTitle('🎉 Verifiziert (vielleicht)!')
         .setDescription(
           'Herzlichen Glückwunsch, du hast das Captcha bestanden und bist jetzt auf dem Server.\n\n' +
-            `Die Regeln findest du übrigens in ${fakeRules ? `<#${fakeRules.id}>` : '#regeln-sind-woanders'}. Da stehen sie nicht.\n\n` +
+            `Die Regeln findest du in ${regeln ? `<#${regeln.id}>` : '#regeln'}. Diesmal stehen sie wirklich da.\n\n` +
             `⏱️ Benötigte Zeit: **${seconds} Sekunden** (Rekord: 3 Sekunden, gelogen)\n` +
             `💥 Fehlversuche: **${session.fails}**`,
         ),

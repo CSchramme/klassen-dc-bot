@@ -40,7 +40,7 @@ const HINWEISE = [
   'Morgen ist hitzefrei. (Gilt nur ab 45 °C.)',
   'Die große Pause wird heute klein geschrieben.',
   'Der Vordereingang bleibt wegen Bauarbeiten geschlossen. Seit 2009.',
-  'Wer seine Socke sucht: siehe #wer-hat-meine-socke-gesehen.',
+  'Die Regeln stehen jetzt in #regeln. Wirklich. Wir haben nachgeschaut.',
   'Bitte keine Gänse mitbringen (§4).',
   'Die Mensa bietet heute an: Essen. Vielleicht.',
 ];
@@ -206,7 +206,7 @@ export function hausaufgabe() {
     'Zähle alle Ampeln auf deinem Schulweg und berechne den Durchschnitt. Pro Ampel.',
     'Lerne die Primzahlen von 1 bis 25 auswendig. (Tipp: 1 ist keine.)',
     'Bastle ein Modell dieses Discord-Servers. Maßstab 1:1.',
-    `Fasse den Inhalt von #nicht-allgemein in einem Satz zusammen. ${pick(extras)}`,
+    `Fasse den Inhalt von #allgemein in einem Satz zusammen. ${pick(extras)}`,
     `Erkläre deiner Familie, was ein Captcha ist. Lass dir die Erklärung unterschreiben.`,
   ]);
 }
@@ -219,7 +219,7 @@ export function durchsage() {
     'Der Besitzer eines silbernen Fahrrads soll sich bitte im Sekretariat melden. Das Fahrrad vermisst dich.',
     'Die Kaffeemaschine im Lehrerzimmer ist wieder kaputt. Alle Lehrkräfte werden gebeten, Ruhe zu bewahren.',
     'Wer hat den Schlüssel für Raum 204? Bitte zurückbringen. Raum 204 vermisst ihn auch.',
-    'Im Flur wurde eine einzelne Socke gefunden. Bitte in #wer-hat-meine-socke-gesehen melden.',
+    'Im Flur wurde eine einzelne Socke gefunden. Bitte im Fundbüro melden (/fundbuero).',
     'Der Hausmeister bittet darum, die Ente im 2. Stock nicht weiter zu füttern.',
     'Das WLAN-Passwort lautet ab sofort „passwort“. Nein, Spaß.',
     'Der Overheadprojektor sucht ein neues Zuhause. Er ist stubenrein.',

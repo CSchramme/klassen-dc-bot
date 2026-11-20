@@ -33,135 +33,82 @@ export const LOTTERY_ROLES = [
   { name: '🥔 Kartoffel', color: 0xa67c52 },
 ];
 
+// Aufgeräumte Struktur (Version 2). "alteNamen" = Namen aus der alten Chaos-Struktur:
+// Solche Kanäle werden beim Abgleich umbenannt und verschoben statt neu angelegt (Nachrichten bleiben).
+export const LAYOUT_VERSION = 2;
+
 export const LAYOUT = [
   {
-    name: '🔽 GANZ UNTEN (eigentlich oben)',
-    sicht: 'verifiziert',
-    channels: [{ type: 'text', name: '⬇️-scroll-runter', topic: 'Hier ist nichts. Scroll runter. Nein, weiter. Noch weiter.' }],
-  },
-  {
-    name: '🚪 Hintereingang',
+    key: 'catEingang',
+    name: '🚪 Eingang',
+    alteNamen: ['🚪 Hintereingang'],
     sicht: 'unverifiziert',
+    channels: [{ type: 'text', name: 'start-hier-vielleicht', key: 'start', nurLesen: true, topic: 'Hier geht es los. Wahrscheinlich.' }],
+  },
+  {
+    key: 'catWichtig',
+    name: '📌 Wichtig',
+    alteNamen: ['📌 WICHTIG (unwichtig)'],
+    sicht: 'verifiziert',
     channels: [
-      { type: 'text', name: 'start-hier-vielleicht', key: 'start', nurLesen: true, topic: 'Hier geht es los. Wahrscheinlich.' },
-      { type: 'text', name: 'nicht-hier-starten', nurLesen: true, topic: 'Hier NICHT starten. Siehe #start-hier-vielleicht.' },
+      { type: 'text', name: 'regeln', key: 'realRules', alteNamen: ['wer-hat-meine-socke-gesehen'], nurLesen: true, topic: 'Die Regeln. Diesmal wirklich hier.' },
+      { type: 'text', name: 'ankündigungen', key: 'announce', alteNamen: ['ankündigungen-alt'], nurLesen: true, topic: 'Ankündigungen und der Willy-Kurier.' },
     ],
   },
   {
-    name: '📌 WICHTIG (unwichtig)',
+    key: 'catChat',
+    name: '💬 Chat',
+    alteNamen: ['🍝 Sonstiges 2'],
     sicht: 'verifiziert',
     channels: [
-      { type: 'text', name: 'regeln-sind-woanders', key: 'fakeRules', nurLesen: true, topic: 'Die Regeln sind nicht hier.' },
-      { type: 'text', name: 'ankündigungen-alt', key: 'announce', nurLesen: true, topic: 'Neue Ankündigungen.' },
-      { type: 'text', name: 'ankündigungen-neu-aber-alt', nurLesen: true, topic: 'Alte Ankündigungen.' },
-      { type: 'text', name: 'ankündigungen-für-ankündigungen', nurLesen: true, topic: 'Hier wird angekündigt, dass etwas angekündigt wird.' },
-    ],
-  },
-  {
-    name: '🍝 Sonstiges 2',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'allgemein', topic: 'Bitte nicht für Allgemeines benutzen.' },
-      { type: 'text', name: 'allgemein-2', topic: 'Für Allgemeines. Aber nur das Zweitwichtigste.' },
-      { type: 'text', name: 'allgemein-final', topic: 'Der finale Allgemein-Kanal.' },
-      { type: 'text', name: '𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3', topic: 'Der WIRKLICH finale Allgemein-Kanal (bis v4).' },
-      { type: 'text', name: 'nicht-allgemein', key: 'system', topic: 'Spezielles. Hier landen auch die Willkommensnachrichten, weil warum nicht.' },
+      { type: 'text', name: 'allgemein', key: 'system', topic: 'Für alles. Wirklich alles.' },
+      { type: 'text', name: 'memes', alteNamen: ['memes-ernst'], topic: 'Memes. Ernsthaft.' },
+      { type: 'text', name: 'enten', topic: 'Enten erlaubt. Gänse nicht (§4).' },
       { type: 'text', name: 'schnell-chat', slowmode: 21600, topic: 'Für schnelle Nachrichten! (Slowmode: 6 Stunden)' },
-      { type: 'text', name: 'langsam-chat', topic: 'Bitte langsam tippen. Wir prüfen das.' },
-    ],
-  },
-  {
-    name: '📚 Schule (glaube ich)',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'hausaufgaben', topic: 'Hausaufgaben bitte in #bio-und-pizza posten.' },
-      { type: 'text', name: 'mathe-nur-mit-zahlen', key: 'mathe', topic: 'Nur Zahlen. 3. 14. 42. Buchstaben werden gelöscht.' },
-      { type: 'text', name: 'deutsch-auf-englisch', topic: 'German on English. Here is everything well.' },
-      { type: 'text', name: 'englisch-auf-deutsch', topic: 'Englisch auf Deutsch. Ich verstehe nur Bahnhof.' },
-      { type: 'text', name: 'bio-und-pizza', topic: 'Biologie. Und Pizza. Und Hausaufgaben (siehe #hausaufgaben).' },
-      { type: 'text', name: 'stundenplan-verwirrung', key: 'vertretung', topic: 'Haben wir jetzt Sport oder Raum 204? Niemand weiß es.' },
       { type: 'text', name: 'lehrkraft-zitate', topic: 'Zitate von Lehrkräften. Nett bleiben, die lesen vielleicht mit.' },
     ],
   },
   {
+    key: 'catSchule',
+    name: '📚 Schule',
+    alteNamen: ['📚 Schule (glaube ich)'],
+    sicht: 'verifiziert',
+    channels: [
+      { type: 'text', name: 'hausaufgaben', topic: 'Hausaufgaben. Hier. Wirklich hier.' },
+      { type: 'text', name: 'stundenplan-verwirrung', key: 'vertretung', topic: 'Vertretungsplan, Stundenplan und allgemeine Verwirrung.' },
+      { type: 'text', name: 'mathe-nur-mit-zahlen', key: 'mathe', topic: 'Nur Zahlen. 3. 14. 42. Buchstaben werden gelöscht.' },
+    ],
+  },
+  {
+    key: 'catVoice',
     name: '🔊 Sprachkanäle',
+    alteNamen: ['💬 Textkanäle'],
     sicht: 'verifiziert',
     channels: [
-      { type: 'text', name: '🔊-sprachkanal-1', topic: 'Das ist ein Textkanal. Überraschung.' },
-      { type: 'text', name: '🔊-sprachkanal-2', topic: 'Auch ein Textkanal. Die Sprachkanäle sind unter "Textkanäle".' },
-    ],
-  },
-  {
-    name: '💬 Textkanäle',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'voice', name: '💬 Chat' },
-      { type: 'voice', name: '📝 Schreiben' },
       { type: 'voice', name: '🏫 Klassenzimmer' },
-      { type: 'voice', name: '🧑‍🏫 Lehrerzimmer (VERBOTEN)' },
-      { type: 'voice', name: '🚽 Klo (1 Person)', userLimit: 1 },
-      { type: 'voice', name: '👥 Gruppenarbeit (max. 2)', userLimit: 2 },
       { type: 'voice', name: '🏃 Pausenhof', key: 'pausenhof' },
+      { type: 'voice', name: '👥 Gruppenarbeit (max. 2)', userLimit: 2 },
+      { type: 'voice', name: '🚽 Klo (1 Person)', userLimit: 1 },
       { type: 'voice', name: '🤫 Bibliothek (LEISE!)' },
-      { type: 'voice', name: '🏀 Hinter der Turnhalle' },
       { type: 'voice', name: '🚌 Schulbus (99 Plätze)', userLimit: 99 },
+      { type: 'voice', name: '💤 Mathe-Unterricht', key: 'afk' },
     ],
   },
   {
-    name: '🦆 Enten-Bereich',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'enten', topic: 'Enten erlaubt.' },
-      { type: 'text', name: 'nicht-enten', key: 'nichtEnten', topic: 'Enten verboten. Wird kontrolliert.' },
-      { type: 'text', name: 'ente-oder-gans-debatte', topic: 'Gänse sind serverweit verboten (§4). Die Debatte ist also schon entschieden.' },
-    ],
-  },
-  {
-    name: '🎰 Glücksspiel (legal)',
-    sicht: 'verifiziert',
-    channels: [{ type: 'text', name: 'rollen-lotterie', key: 'lottery', nurLesen: true, topic: 'Drück den Knopf. Werde jemand.' }],
-  },
-  {
-    name: '🎫 Beschwerdestelle (geschlossen)',
-    sicht: 'verifiziert',
     key: 'ticketCategory',
-    channels: [{ type: 'text', name: 'tickets-bitte-nicht-benutzen', key: 'tickets', nurLesen: true, topic: 'Tickets. Bitte nicht.' }],
-  },
-  {
-    name: '🗑️ Archiv (aktiv)',
+    name: '🎮 Spaß',
+    alteNamen: ['🎫 Beschwerdestelle (geschlossen)'],
     sicht: 'verifiziert',
     channels: [
-      { type: 'text', name: 'memes-ernst', topic: 'Nur ernste Memes.' },
-      { type: 'text', name: 'ernst-memes', topic: 'Nur memige Ernsthaftigkeit.' },
-      { type: 'text', name: '🚨-polizeiwache', key: 'modlog', nurLesen: true, topic: 'Protokoll der Moderation. Alles hier ist rechtskräftig (nicht).' },
+      { type: 'text', name: 'rollen-lotterie', key: 'lottery', nurLesen: true, topic: 'Drück den Knopf. Werde jemand.' },
+      { type: 'text', name: 'tickets-bitte-nicht-benutzen', key: 'tickets', nurLesen: true, topic: 'Tickets. Bitte nicht.' },
+      { type: 'text', name: '🚨-polizeiwache', key: 'modlog', nurLesen: true, topic: 'Protokoll der Moderation. Rechtskräftig (nicht).' },
     ],
   },
   {
-    name: '⚠️ NICHT ÖFFNEN',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'ok-du-hast-es-geöffnet', key: 'nichtOeffnen', nurLesen: true, topic: 'Wir hatten EINE Bitte.' },
-      { type: 'text', name: 'jetzt-ist-es-zu-spät', topic: 'Jetzt ist es auch egal.' },
-    ],
-  },
-  {
-    name: 'Kategorie',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'kanal', topic: 'Kanal.' },
-      { type: 'voice', name: 'Sprachkanal' },
-    ],
-  },
-  {
-    name: '🧦 Socken',
-    sicht: 'verifiziert',
-    channels: [
-      { type: 'text', name: 'wer-hat-meine-socke-gesehen', key: 'realRules', nurLesen: true, topic: 'Socke weg. Außerdem: die echten Regeln.' },
-      { type: 'text', name: 'socken-tausch', topic: 'Links gegen rechts. Fair ist fair.' },
-    ],
-  },
-  {
-    name: '🛡️ Team-Bereich (streng geheim)',
+    key: 'catTeam',
+    name: '🛡️ Team',
+    alteNamen: ['🛡️ Team-Bereich (streng geheim)'],
     sicht: 'team',
     channels: [
       { type: 'text', name: '📜-team-kodex', key: 'kodex', nurLesen: true, topic: 'Verbindliche Kommunikationsrichtlinie. Lesepflicht.' },
@@ -169,20 +116,56 @@ export const LAYOUT = [
       { type: 'voice', name: '🛡️ Team-Sitzung (Kaffee mitbringen)' },
     ],
   },
-  {
-    name: '💤 Ruheraum',
-    sicht: 'verifiziert',
-    channels: [{ type: 'voice', name: '💤 Mathe-Unterricht', key: 'afk' }],
-  },
-  {
-    name: '🔼 GANZ OBEN (eigentlich unten)',
-    sicht: 'verifiziert',
-    channels: [{ type: 'text', name: '⬆️-scroll-hoch', topic: 'Du bist unten. Die Kategorie sagt oben. Beides stimmt.' }],
-  },
+];
+
+// Einmalig beim Umstieg von der alten Chaos-Struktur gelöscht (nur genau diese Namen)
+export const ALTE_WITZKANAELE = [
+  '⬇️-scroll-runter',
+  '⬆️-scroll-hoch',
+  'nicht-hier-starten',
+  'regeln-sind-woanders',
+  'ankündigungen-neu-aber-alt',
+  'ankündigungen-für-ankündigungen',
+  'allgemein-2',
+  'allgemein-final',
+  '𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3',
+  'nicht-allgemein',
+  'langsam-chat',
+  'deutsch-auf-englisch',
+  'englisch-auf-deutsch',
+  'bio-und-pizza',
+  '🔊-sprachkanal-1',
+  '🔊-sprachkanal-2',
+  '💬 Chat',
+  '📝 Schreiben',
+  '🧑‍🏫 Lehrerzimmer (VERBOTEN)',
+  '🏀 Hinter der Turnhalle',
+  'nicht-enten',
+  'ente-oder-gans-debatte',
+  'ernst-memes',
+  'ok-du-hast-es-geöffnet',
+  'jetzt-ist-es-zu-spät',
+  'kanal',
+  'Sprachkanal',
+  'socken-tausch',
+];
+
+// Alte Kategorien: werden gelöscht, wenn sie danach leer sind
+export const ALTE_KATEGORIEN = [
+  '🔽 GANZ UNTEN (eigentlich oben)',
+  '🔊 Sprachkanäle', // die alte mit den Text-"Sprachkanälen" (nur wenn leer)
+  '🦆 Enten-Bereich',
+  '🎰 Glücksspiel (legal)',
+  '🗑️ Archiv (aktiv)',
+  '⚠️ NICHT ÖFFNEN',
+  'Kategorie',
+  '🧦 Socken',
+  '💤 Ruheraum',
+  '🔼 GANZ OBEN (eigentlich unten)',
 ];
 
 // ---------------------------------------------------------------------------
-// Regeln (werden beim Captcha seitenweise gezeigt und in #wer-hat-meine-socke-gesehen gepostet)
+// Regeln (werden beim Captcha seitenweise gezeigt und in #regeln gepostet)
 // ---------------------------------------------------------------------------
 export const RULE_PAGES = [
   {

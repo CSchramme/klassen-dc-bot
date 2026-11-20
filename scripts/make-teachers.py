@@ -24,6 +24,9 @@ TEACHERS = [
     ("bio", "#27ae60", "#e0ac69", "#6d4c41", "🌱", False),
     ("geschichte", "#7f6a4f", "#ffd8b1", "#dddddd", "🏛", True),
     ("sport", "#e67e22", "#c68642", "#222222", "📣", False),
+    ("chemie", "#16a085", "#ffe0bd", "#ff5722", "🧪", True),
+    ("musik", "#d81b60", "#f1c27d", "#311b92", "🎵", False),
+    ("kunst", "#fbc02d", "#e0ac69", "#00897b", "🎨", False),
 ]
 
 
@@ -45,7 +48,7 @@ def face(bg, skin, hair, acc, glasses, look):
 
 
 if __name__ == "__main__":
-    looks = [(0.8, -0.5), (-0.7, 0.6), (0.2, 0.9), (-0.9, -0.2), (0.6, 0.6), (-0.3, -0.9)]
+    looks = [(0.8, -0.5), (-0.7, 0.6), (0.2, 0.9), (-0.9, -0.2), (0.6, 0.6), (-0.3, -0.9), (0.9, 0.9), (-0.6, -0.6), (0.0, -1.0)]
     for (name, bg, skin, hair, acc, glasses), look in zip(TEACHERS, looks):
         face(bg, skin, hair, acc, glasses, look).save(OUT / f"{name}.png")
     print("Fertig:", sorted(p.name for p in OUT.glob("*.png")))

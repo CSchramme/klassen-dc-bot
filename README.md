@@ -4,7 +4,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 
 | Feature | Was passiert |
 |---|---|
-| 🏗️ **Chaos-Serveraufbau** | `/setup` baut 17 Kategorien mit über 50 Kanälen. Die Sprachkanäle heißen „Textkanäle“, „GANZ OBEN“ ist ganz unten, es gibt `#allgemein`, `#allgemein-2`, `#allgemein-final` und `#𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3`, und der „Schnell-Chat“ hat 6 Stunden Slowmode. |
+| 🏗️ **Serveraufbau** | `/setup` baut eine übersichtliche Struktur mit Willy-Humor: 🚪 Eingang, 📌 Wichtig, 💬 Chat (#allgemein, #memes, #enten, #schnell-chat mit 6 Stunden Slowmode …), 📚 Schule, 🏫 Unterricht, 🔊 Sprachkanäle (Klo für 1 Person, Schulbus für 99), 🎮 Spaß, 🛡️ Team. **Bei jedem Neustart gleicht Willy den Server ab:** Fehlendes wird ergänzt, Kanäle landen in der richtigen Kategorie und Reihenfolge. Server mit der alten Chaos-Struktur werden beim ersten Start einmalig aufgeräumt (alte Witzkanäle werden gelöscht, #regeln, #ankündigungen usw. bleiben mit allen Nachrichten erhalten). |
 | 🖼️ **Dumme Server-Icons** | Kartoffel mit Glupschaugen („KLASE“), frittierte Ente mit Sonnenbrille, Emoji-Suppe und ein weinender RAM-Riegel („WO RAM???“). Liegen in `assets/icons/`. Ab Boost-Level 1 gibt es **animierte** Versionen (rollende Augen, drehende Ente, weinender RAM, Ladebalken, der bei 99 % hängt) aus `assets/icons-animated/`. |
 | 📜 **Regeln + sinnloses Captcha** | Neue Leute sehen nur den „Hintereingang“. Sie müssen 6 Regelseiten durchblättern und dann ein 8-stufiges Captcha lösen: Roboter-Frage, Ampel-Raster, Quatsch-Mathe, Rückwärts-Schreiben, Lieblings-Primzahl, Ladebalken mit 99 %, Bestätigung der Bestätigung und ein zufälliges „Captcha fehlgeschlagen (Mondphase)“ mit Einspruch. |
 | 🔊 **Soundboard-Überfälle** | Wenn jemand im Sprachkanal ist, kommt der Bot zufällig rein und spielt Soundboard-Sounds **eures Servers** (keine Discord-Standardsounds). |
@@ -24,7 +24,7 @@ Ein absichtlich dummer, aber gut gemeinter Bot. Er macht:
 | 🎤 **Sprachkanal-Umbenennung** | Sitzt jemand 45 Sekunden allein im Sprachkanal, heißt der Kanal z. B. „🦗 Anna und die Grillen“. Kommt jemand dazu, wird er zurückbenannt. |
 | ☕ **Willys Kaffeepause** | 1–2x am Tag macht Willy 10 Minuten Pause. Spaß-Befehle bekommen dann nur „☕ Pause. Noch 7 Minuten.“ (Tickets laufen weiter.) |
 | 🪑 **`/sitzplan`** | Täglicher Sitzplan aus den aktiven Leuten, aufgefüllt mit Enten, Kartoffeln und Heinz dem Kaktus. Wer „Hinterste Reihe“ gezogen hat, sitzt hinten. |
-| 🏫 **Schul-Spiel** | `/schule einrichten` legt 6 Fachräume mit eigenen Lehrer:innen an (z. B. „Frau Dr. Bruchrechnung“ in Mathe, „Coach Pfeife“ in Sport, jeweils mit eigenem Namen und Bild). Mo–Fr laut `/stundenplan` gibt es Unterricht: Gong im Sprachkanal, Anwesenheit per Knopf (zu spät = Klassenbuch), Mini-Lektion per KI, 3 Quizfragen, Mitarbeit zählt, am Ende Hausaufgabe und Pausenklingel. Daraus entstehen **echte Noten** (`/noten`), die auch im PDF-Zeugnis stehen. 3 Klassenbuch-Einträge = **Nachsitzen** (nur noch im Nachsitz-Raum schreiben, bis man 3x „Ich soll im Unterricht nicht stören.“ abgeschrieben hat). Dazu eine **Klassensprecher:innen-Wahl**. |
+| 🏫 **Schul-Spiel** | `/schule einrichten` legt 9 Fachräume (Mathe, Deutsch, Englisch, Bio, Geschichte, Sport, Chemie, Musik, Kunst), ein Lehrerzimmer und eigene Lehrer:innen an (z. B. „Frau Dr. Bruchrechnung“ in Mathe, „Coach Pfeife“ in Sport, jeweils mit eigenem Namen und Bild). Mo–Fr laut `/stundenplan` gibt es Unterricht: Gong im Sprachkanal, Anwesenheit per Knopf (zu spät = Klassenbuch), Mini-Lektion per KI, 3 Quizfragen, Mitarbeit zählt, am Ende Hausaufgabe und Pausenklingel. Daraus entstehen **echte Noten** (`/noten`), die auch im PDF-Zeugnis stehen. 3 Klassenbuch-Einträge = **Nachsitzen** (nur noch im Nachsitz-Raum schreiben, bis man 3x „Ich soll im Unterricht nicht stören.“ abgeschrieben hat). Dazu eine **Klassensprecher:innen-Wahl**. |
 | 🎰 **Rollen-Lotterie** | Knopf drücken und zufällig „🥔 Kartoffel“ oder „📏 Hat das Geodreieck geklaut“ werden. |
 
 ---
@@ -95,7 +95,7 @@ Normalerweise schreiben die Lehrkräfte über Webhooks (eigener Name und Bild, a
 sind sie richtige Mitglieder: Sie stehen in der Mitgliederliste, sind online, und man kann sie erwähnen (@Frau Dr. Bruchrechnung),
 dann antworten sie per KI in ihrer Rolle. Alle laufen im selben Programm wie Willy.
 
-Du brauchst **bis zu 6 Bots** (einen pro Fach). Fehlt einer, schreibt diese Lehrkraft weiter per Webhook.
+Du brauchst **bis zu 9 Bots** (einen pro Fach). Fehlt einer, schreibt diese Lehrkraft weiter per Webhook.
 
 | Fach | Name im Developer Portal | Eintrag in der `.env` |
 |---|---|---|
@@ -105,6 +105,9 @@ Du brauchst **bis zu 6 Bots** (einen pro Fach). Fehlt einer, schreibt diese Lehr
 | 🌱 Bio | Frau Photosynthese | `LEHRER_BIO_TOKEN=` |
 | 🏛️ Geschichte | Herr Damals | `LEHRER_GESCHICHTE_TOKEN=` |
 | 📣 Sport | Coach Pfeife | `LEHRER_SPORT_TOKEN=` |
+| 🧪 Chemie | Herr Explosion | `LEHRER_CHEMIE_TOKEN=` |
+| 🎵 Musik | Frau Dur-Moll | `LEHRER_MUSIK_TOKEN=` |
+| 🎨 Kunst | Herr Pinselstrich | `LEHRER_KUNST_TOKEN=` |
 
 Pro Bot:
 1. https://discord.com/developers/applications → **New Application** → Name aus der Tabelle.
@@ -139,7 +142,7 @@ Pro Bot:
 | `/insider` | alle | Zufälliger Insider |
 | `/ki test` | Server verwalten | Stellt der KI eine Testfrage und zeigt pro Modell, was passiert (Fehler, Dauer, Antwort) |
 | `/formular art:<…>` | alle | Einen nervigen Antrag stellen (mehrseitig, mit Bescheid und Widerspruch) |
-| `/schule einrichten` | Admin | Schul-Spiel einrichten (Fachräume, Lehrer:innen, Klassenbuch, Nachsitz-Raum) |
+| `/schule einrichten` | Admin | Schul-Spiel einrichten bzw. ergänzen (Fachräume, Lehrer:innen, Klassenbuch, Nachsitz-Raum, Lehrerzimmer) – passiert auch automatisch bei jedem Neustart |
 | `/schule lehrer` | Admin | Welche Lehrkräfte sind eigene Bots? (mit Einladungslinks) |
 | `/stundenplan` | alle | Unterricht dieser Woche |
 | `/unterricht starten [fach] / beenden` | Server verwalten | Stunde sofort starten oder abbrechen |

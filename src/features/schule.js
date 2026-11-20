@@ -172,14 +172,18 @@ async function lehrerZugang(guild) {
     const key = `${guild.id}:${fach}`;
     if (Date.now() - (zugangGeprueft.get(key) ?? 0) < 10 * MIN) continue;
     zugangGeprueft.set(key, Date.now());
-    const raum = raumVon(guild, fach);
-    if (!raum || raum.permissionOverwrites.cache.has(bot.user.id)) continue;
+    const raeume = [raumVon(guild, fach), guild.channels.cache.get(schule(guild.id).ids.lehrerzimmer)].filter(
+      (r) => r && !r.permissionOverwrites.cache.has(bot.user.id),
+    );
+    if (!raeume.length) continue;
     const mitglied = await guild.members.fetch(bot.user.id).catch(() => null);
     if (!mitglied) continue; // noch nicht eingeladen
-    await raum.permissionOverwrites
-      .edit(bot.user.id, { ViewChannel: true, SendMessages: true, EmbedLinks: true, AttachFiles: true, ReadMessageHistory: true }, { reason: 'Lehrer-Bot' })
-      .catch((err) => logError('schule:zugang', err));
-    console.log(`🔑 ${FAECHER[fach].lehrer} hat jetzt Zugang zu ${raum.name}.`);
+    for (const raum of raeume) {
+      await raum.permissionOverwrites
+        .edit(bot.user.id, { ViewChannel: true, SendMessages: true, EmbedLinks: true, AttachFiles: true, ReadMessageHistory: true }, { reason: 'Lehrer-Bot' })
+        .catch((err) => logError('schule:zugang', err));
+      console.log(`🔑 ${FAECHER[fach].lehrer} hat jetzt Zugang zu ${raum.name}.`);
+    }
   }
 }
 
@@ -579,7 +583,11 @@ async function wahlAuswerten(guild) {
 // ---------------------------------------------------------------------------
 // Einrichten
 // ---------------------------------------------------------------------------
-async function einrichten(guild) {
+/**
+ * Richtet die Schule ein bzw. ergänzt, was fehlt (neue Fächer, Lehrerzimmer, Webhooks, Nachsitz-Rechte).
+ * Läuft auch bei jedem Neustart. Gibt Protokollzeilen zurück (leise: nur wenn sich etwas geändert hat).
+ */
+export async function schulAbgleich(guild, { leise = false } = {}) {
   const s = schule(guild.id);
   const log = [];
   const verified = findRole(guild, 'verified');
@@ -591,55 +599,102 @@ async function einrichten(guild) {
     ...(team ? [{ id: team.id, allow: [P.ViewChannel] }] : []),
     { id: guild.client.user.id, allow: [P.ViewChannel, P.SendMessages, P.ManageWebhooks, P.ManageMessages, P.EmbedLinks, P.AttachFiles] },
   ];
+  const kanal = (id, name) => guild.channels.cache.get(id) ?? guild.channels.cache.find((c) => c.type === ChannelType.GuildText && c.name === name);
 
   // Rollen
-  const rolle = async (name, color, hoist = false) =>
-    guild.roles.cache.find((r) => r.name === name) ?? guild.roles.create({ name, colors: { primaryColor: color }, hoist, permissions: [], reason: 'Schule' });
+  const rolle = async (name, color, hoist = false) => {
+    const vorhanden = guild.roles.cache.get(name === '⛓️ Nachsitzen' ? s.ids.roleNachsitzen : s.ids.roleSprecher) ?? guild.roles.cache.find((r) => r.name === name);
+    if (vorhanden) return vorhanden;
+    log.push(`🎭 Rolle „${name}“ angelegt`);
+    return guild.roles.create({ name, colors: { primaryColor: color }, hoist, permissions: [], reason: 'Schule' });
+  };
   const nachsitzRolle = await rolle('⛓️ Nachsitzen', 0x2c3e50);
   const sprecherRolle = await rolle('🎖️ Klassensprecher:in', 0xf1c40f, true);
   s.ids.roleNachsitzen = nachsitzRolle.id;
   s.ids.roleSprecher = sprecherRolle.id;
-  log.push('🎭 Rollen „⛓️ Nachsitzen“ und „🎖️ Klassensprecher:in“');
 
-  // Kategorie + Räume
-  const cat = await guild.channels.create({ name: '🏫 Unterricht (Anwesenheitspflicht)', type: ChannelType.GuildCategory, permissionOverwrites: sicht(false) });
+  // Kategorie
+  let cat = guild.channels.cache.get(s.ids.category) ?? guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && c.name.startsWith('🏫 Unterricht'));
+  if (!cat) {
+    cat = await guild.channels.create({ name: '🏫 Unterricht (Anwesenheitspflicht)', type: ChannelType.GuildCategory, permissionOverwrites: sicht(false) });
+    log.push('🏫 Kategorie „Unterricht“ angelegt');
+  }
   s.ids.category = cat.id;
-  s.ids.raeume = {};
-  s.ids.webhooks = {};
+
+  const sicherstellen = async (id, name, topic, nurLesen, extra = []) => {
+    let ch = kanal(id, name);
+    let neu = false;
+    if (!ch) {
+      ch = await guild.channels.create({ name, type: ChannelType.GuildText, parent: cat.id, topic, permissionOverwrites: [...sicht(nurLesen), ...extra] });
+      neu = true;
+    } else if (ch.parentId !== cat.id) {
+      await ch.setParent(cat.id, { lockPermissions: false }).catch(() => {});
+    }
+    return { ch, neu };
+  };
+
+  // Fachräume + Lehrer-Webhooks
+  s.ids.raeume ??= {};
+  s.ids.webhooks ??= {};
+  const neueFaecher = [];
   for (const fach of FACH_KEYS) {
     const f = FAECHER[fach];
-    const ch = await guild.channels.create({
-      name: f.raum,
-      type: ChannelType.GuildText,
-      parent: cat.id,
-      topic: `${f.emoji} ${f.name} bei ${f.lehrer}. Unterricht laut /stundenplan.`,
-      permissionOverwrites: sicht(false),
-    });
+    const { ch, neu } = await sicherstellen(s.ids.raeume[fach], f.raum, `${f.emoji} ${f.name} bei ${f.lehrer}. Unterricht laut /stundenplan.`, false);
     s.ids.raeume[fach] = ch.id;
-    try {
-      const wh = await ch.createWebhook({ name: `${f.lehrer} (${f.name})`, avatar: fs.readFileSync(path.join(AVATARE, f.avatar)), reason: 'Lehrer' });
-      s.ids.webhooks[fach] = { id: wh.id, token: wh.token };
-    } catch (err) {
-      logError('schule:webhook', err);
+    if (neu) neueFaecher.push(f.name);
+    if (!s.ids.webhooks[fach]) {
+      try {
+        const wh = await ch.createWebhook({ name: `${f.lehrer} (${f.name})`, avatar: fs.readFileSync(path.join(AVATARE, f.avatar)), reason: 'Lehrer' });
+        s.ids.webhooks[fach] = { id: wh.id, token: wh.token };
+      } catch (err) {
+        logError('schule:webhook', err);
+      }
     }
   }
-  log.push(`🏫 ${FACH_KEYS.length} Fachräume mit Lehrer:innen`);
-  const buch = await guild.channels.create({ name: '📕-klassenbuch', type: ChannelType.GuildText, parent: cat.id, topic: 'Alle Einträge. Rechtskräftig (nicht).', permissionOverwrites: sicht(true) });
-  const nach = await guild.channels.create({
-    name: '⛓️-nachsitzen',
-    type: ChannelType.GuildText,
-    parent: cat.id,
-    topic: `Hier wird nachgesessen. Strafarbeit: 3x „${STRAFSATZ}“`,
-    permissionOverwrites: [...sicht(false), { id: nachsitzRolle.id, allow: [P.ViewChannel, P.SendMessages] }],
-  });
-  s.ids.klassenbuch = buch.id;
-  s.ids.nachsitzen = nach.id;
+  if (neueFaecher.length) log.push(`🏫 Neue Fachräume: ${neueFaecher.join(', ')}`);
+
+  // Klassenbuch, Nachsitzen, Lehrerzimmer
+  const buch = await sicherstellen(s.ids.klassenbuch, '📕-klassenbuch', 'Alle Einträge. Rechtskräftig (nicht).', true);
+  s.ids.klassenbuch = buch.ch.id;
+  if (buch.neu) {
+    log.push('📕 Klassenbuch angelegt');
+    await buch.ch.send({ content: '📕 **Klassenbuch eröffnet.** Hier landen Zuspätkommen, Störungen und alles andere. 3 Einträge = Nachsitzen.', allowedMentions: NO_PINGS });
+  }
+  const nach = await sicherstellen(s.ids.nachsitzen, '⛓️-nachsitzen', `Hier wird nachgesessen. Strafarbeit: 3x „${STRAFSATZ}“`, false, [
+    { id: nachsitzRolle.id, allow: [P.ViewChannel, P.SendMessages] },
+  ]);
+  s.ids.nachsitzen = nach.ch.id;
+  if (nach.neu) log.push('⛓️ Nachsitz-Raum angelegt');
+  const lz = await sicherstellen(s.ids.lehrerzimmer, '☕-lehrerzimmer', 'Lehrerzimmer. Schüler:innen dürfen nur mitlesen. Psst.', true);
+  s.ids.lehrerzimmer = lz.ch.id;
+  if (lz.neu) log.push('☕ Lehrerzimmer angelegt');
+  s.ids.lzWebhooks ??= {};
+  for (const fach of FACH_KEYS) {
+    if (s.ids.lzWebhooks[fach]) continue;
+    const f = FAECHER[fach];
+    try {
+      const wh = await lz.ch.createWebhook({ name: `${f.lehrer} (${f.name})`, avatar: fs.readFileSync(path.join(AVATARE, f.avatar)), reason: 'Lehrerzimmer' });
+      s.ids.lzWebhooks[fach] = { id: wh.id, token: wh.token };
+    } catch (err) {
+      logError('schule:lz-webhook', err);
+    }
+  }
   save();
 
-  // Nachsitzen-Rolle: überall sonst nicht schreiben/sprechen
+  // Reihenfolge im Unterricht: Fachräume, dann Klassenbuch, Nachsitzen, Lehrerzimmer
+  const soll = [...FACH_KEYS.map((f) => s.ids.raeume[f]), s.ids.klassenbuch, s.ids.nachsitzen, s.ids.lehrerzimmer]
+    .map((id) => guild.channels.cache.get(id))
+    .filter(Boolean);
+  const ist = [...guild.channels.cache.filter((c) => c.parentId === cat.id).values()].sort((a, b) => a.position - b.position);
+  const rest = ist.filter((c) => !soll.includes(c));
+  if ([...soll, ...rest].map((c) => c.id).join() !== ist.map((c) => c.id).join()) {
+    await guild.channels.setPositions([...soll, ...rest].map((c, i) => ({ channel: c.id, position: i, parent: cat.id }))).catch((err) => logError('schule:reihenfolge', err));
+  }
+
+  // Nachsitzen-Rolle: überall sonst nicht schreiben/sprechen (nur Kanäle, die das noch nicht haben)
   let n = 0;
   for (const ch of guild.channels.cache.values()) {
-    if (ch.id === nach.id || ch.isThread?.() || !ch.permissionOverwrites) continue;
+    if (ch.id === s.ids.nachsitzen || ch.isThread?.() || !ch.permissionOverwrites || ch.permissionOverwrites.cache.has(nachsitzRolle.id)) continue;
     try {
       await ch.permissionOverwrites.edit(nachsitzRolle, { SendMessages: false, AddReactions: false, Speak: false, SendMessagesInThreads: false }, { reason: 'Nachsitzen' });
       n++;
@@ -647,8 +702,8 @@ async function einrichten(guild) {
       // egal
     }
   }
-  log.push(`⛓️ Nachsitzen gilt in ${n} Kanälen`);
-  await buch.send({ content: '📕 **Klassenbuch eröffnet.** Hier landen Zuspätkommen, Störungen und alles andere. 3 Einträge = Nachsitzen.', allowedMentions: NO_PINGS });
+  if (n) log.push(`⛓️ Nachsitzen gilt jetzt in ${n} weiteren Kanälen`);
+  if (!leise && !log.length) log.push('✅ Die Schule ist schon auf dem neuesten Stand.');
   return log;
 }
 
@@ -748,11 +803,8 @@ export async function handleSchulCommand(interaction) {
           ...ephemeral,
         });
       }
-      if (istEingerichtet(guild) && guild.channels.cache.has(s.ids.category)) {
-        return interaction.reply({ content: 'Die Schule ist schon eingerichtet. Zweimal einschulen geht nicht.', ...ephemeral });
-      }
       await interaction.deferReply(ephemeral);
-      const log = await einrichten(guild);
+      const log = await schulAbgleich(guild);
       return interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x57f287).setTitle('🏫 Schule eingerichtet').setDescription(log.join('\n'))] });
     }
 

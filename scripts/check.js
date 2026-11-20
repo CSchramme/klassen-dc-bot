@@ -26,6 +26,7 @@ const fun = await import('../src/features/fun.js');
 const { SOUNDS, uploadSounds } = await import('../src/features/sounds.js');
 const { zeugnisPdf } = await import('../src/features/zeugnis-pdf.js');
 const { noteFuer } = await import('../src/features/schule.js');
+const { serverAbgleich } = await import('../src/features/setup.js');
 const { FAECHER } = await import('../src/features/schule-daten.js');
 const { FORMS, handleFormular, handleFormularCommand } = await import('../src/features/formulare.js');
 const fsMod = await import('node:fs');
@@ -90,7 +91,7 @@ check('Layout', () => {
       }
     }
   }
-  for (const k of ['start', 'fakeRules', 'realRules', 'lottery', 'tickets', 'modlog', 'kodex', 'system', 'afk', 'announce', 'mathe', 'nichtEnten']) {
+  for (const k of ['start', 'realRules', 'lottery', 'tickets', 'modlog', 'kodex', 'system', 'afk', 'announce', 'mathe', 'vertretung', 'pausenhof']) {
     assert.ok(keys.has(k), `Key fehlt: ${k}`);
   }
   assert.ok(LAYOUT.length + total <= 500);
@@ -424,6 +425,86 @@ async function simulateFormulare() {
   assert.equal(w.sent.length, 1);
 }
 
+
+// ---------------------------------------------------------------- Abgleich: alter Chaos-Server -> neue Struktur
+async function simulateAbgleich() {
+  const { ChannelType } = await import('discord.js');
+  const T = ChannelType;
+  let nid = 1000; const events = [];
+  const channels = new Collection();
+  const roles = new Collection();
+  const mkCh = (name, type, parentId = null, extra = {}) => {
+    const id = String(nid++);
+    const ch = { id, name, type, parentId, position: channels.filter((c) => (c.type === T.GuildCategory) === (type === T.GuildCategory)).size,
+      permissionOverwrites: { cache: new Collection(), edit: async (r) => { ch.permissionOverwrites.cache.set(r.id ?? r, {}); } },
+      isThread: () => false, isTextBased: () => type !== T.GuildCategory,
+      async delete() { channels.delete(id); events.push(`LÖSCHEN ${type === T.GuildCategory ? '[Kategorie] ' : ''}${name}`); },
+      async setParent(p) { events.push(`VERSCHIEBEN ${ch.name} -> ${channels.get(p)?.name}`); ch.parentId = p; },
+      async setName(n) { events.push(`UMBENENNEN ${ch.name} -> ${n}`); ch.name = n; },
+      async send() { return {}; }, async createWebhook() { return { id: 'w' + nid++, token: 't' }; }, ...extra };
+    channels.set(id, ch); return ch;
+  };
+  // --- alter Server (Chaos-Struktur v1) ---
+  const cat = (n) => mkCh(n, T.GuildCategory);
+  const old = [
+    ['🔽 GANZ UNTEN (eigentlich oben)', [['⬇️-scroll-runter']]],
+    ['🚪 Hintereingang', [['start-hier-vielleicht', 'start'], ['nicht-hier-starten']]],
+    ['📌 WICHTIG (unwichtig)', [['regeln-sind-woanders', 'fakeRules'], ['ankündigungen-alt', 'announce'], ['ankündigungen-neu-aber-alt'], ['ankündigungen-für-ankündigungen']]],
+    ['🍝 Sonstiges 2', [['allgemein'], ['allgemein-2'], ['allgemein-final'], ['𝗮𝗹𝗹𝗴𝗲𝗺𝗲𝗶𝗻-final-final-v3'], ['nicht-allgemein', 'system'], ['schnell-chat'], ['langsam-chat']]],
+    ['📚 Schule (glaube ich)', [['hausaufgaben'], ['mathe-nur-mit-zahlen', 'mathe'], ['deutsch-auf-englisch'], ['englisch-auf-deutsch'], ['bio-und-pizza'], ['stundenplan-verwirrung'], ['lehrkraft-zitate']]],
+    ['🔊 Sprachkanäle', [['🔊-sprachkanal-1'], ['🔊-sprachkanal-2']]],
+    ['💬 Textkanäle', [['💬 Chat', null, T.GuildVoice], ['📝 Schreiben', null, T.GuildVoice], ['🏫 Klassenzimmer', null, T.GuildVoice], ['🧑‍🏫 Lehrerzimmer (VERBOTEN)', null, T.GuildVoice], ['🚽 Klo (1 Person)', null, T.GuildVoice], ['👥 Gruppenarbeit (max. 2)', null, T.GuildVoice], ['🏃 Pausenhof', null, T.GuildVoice], ['🤫 Bibliothek (LEISE!)', null, T.GuildVoice], ['🏀 Hinter der Turnhalle', null, T.GuildVoice], ['🚌 Schulbus (99 Plätze)', null, T.GuildVoice]]],
+    ['🦆 Enten-Bereich', [['enten'], ['nicht-enten', 'nichtEnten'], ['ente-oder-gans-debatte']]],
+    ['🎰 Glücksspiel (legal)', [['rollen-lotterie', 'lottery']]],
+    ['🎫 Beschwerdestelle (geschlossen)', [['tickets-bitte-nicht-benutzen', 'tickets'], ['ticket-0001-wlan-kaputt']]],
+    ['🗑️ Archiv (aktiv)', [['memes-ernst'], ['ernst-memes'], ['🚨-polizeiwache', 'modlog']]],
+    ['⚠️ NICHT ÖFFNEN', [['ok-du-hast-es-geöffnet', 'nichtOeffnen'], ['jetzt-ist-es-zu-spät']]],
+    ['Kategorie', [['kanal'], ['Sprachkanal', null, T.GuildVoice]]],
+    ['🧦 Socken', [['wer-hat-meine-socke-gesehen', 'realRules'], ['socken-tausch']]],
+    ['🛡️ Team-Bereich (streng geheim)', [['📜-team-kodex', 'kodex'], ['team-besprechung'], ['🛡️ Team-Sitzung (Kaffee mitbringen)', null, T.GuildVoice]]],
+    ['💤 Ruheraum', [['💤 Mathe-Unterricht', 'afk', T.GuildVoice]]],
+    ['🔼 GANZ OBEN (eigentlich unten)', [['⬆️-scroll-hoch']]],
+  ];
+  const g = guildState('gx-abgleich'); g.setupDone = true; g.ids = {};
+  for (const [cname, chs] of old) {
+    const c = cat(cname);
+    for (const [n, key, type] of chs) { const ch = mkCh(n, type ?? T.GuildText, c.id); if (key) g.ids[`ch_${key}`] = ch.id; }
+  }
+  // alte Schule (6 Fächer, ohne Lehrerzimmer)
+  const sc = cat('🏫 Unterricht (Anwesenheitspflicht)');
+  g.schule = { ids: { category: sc.id, raeume: {}, webhooks: {} } };
+  for (const [k, r] of [['mathe', 'raum-101-mathe'], ['deutsch', 'raum-102-deutsch'], ['englisch', 'raum-103-englisch'], ['bio', 'raum-104-bio'], ['geschichte', 'raum-105-geschichte'], ['sport', 'raum-106-sport']]) {
+    g.schule.ids.raeume[k] = mkCh(r, T.GuildText, sc.id).id; g.schule.ids.webhooks[k] = { id: 'x', token: 'y' };
+  }
+  g.schule.ids.klassenbuch = mkCh('📕-klassenbuch', T.GuildText, sc.id).id;
+  g.schule.ids.nachsitzen = mkCh('⛓️-nachsitzen', T.GuildText, sc.id).id;
+  const anzahlVorher = channels.size;
+  // --- Guild-Mock ---
+  const me = { permissions: { has: () => true }, roles: { highest: { position: 99, name: 'Hausmeister Willy' }, add: async () => {} }, setNickname: async () => {} };
+  const guild = {
+    id: 'gx-abgleich', name: 'Test', ownerId: 'owner', premiumTier: 0, systemChannelId: null, afkChannelId: null,
+    client: { user: { id: 'bot' } },
+    roles: { everyone: { id: 'everyone' }, cache: roles, fetch: async () => roles, setPositions: async () => {},
+      create: async (o) => { const r = { id: 'r' + nid++, name: o.name, position: 1, managed: false }; roles.set(r.id, r); return r; } },
+    members: { me, fetch: async () => ({ displayName: 'Tim', roles: { cache: new Collection(), add: async () => {} } }) },
+    channels: { cache: channels, create: async (o) => { const ch = mkCh(o.name, o.type, o.parent ?? null); events.push(`ANLEGEN ${o.type === T.GuildCategory ? '[Kategorie] ' : ''}${o.name}`); return ch; },
+      setPositions: async (arr) => { events.push(`SORTIEREN (${arr.length} Kategorien)`); for (const { channel, position } of arr) channels.get(channel).position = position; } },
+    setSystemChannel: async (c) => { guild.systemChannelId = c.id; events.push(`SYSTEMKANAL -> ${c.name}`); },
+    setAFKChannel: async (c) => { guild.afkChannelId = c.id; events.push(`AFK -> ${c.name}`); },
+    soundboardSounds: { fetch: async () => new Collection(), create: async () => {} },
+  };
+  const log1 = await serverAbgleich(guild);
+  assert.ok(log1.some((l) => l.includes('28 alte Witzkanäle')), 'Witzkanäle nicht (alle) gelöscht: ' + log1.join(' | '));
+  const namen = [...channels.values()].map((c) => c.name);
+  for (const n of ['regeln', 'ankündigungen', 'allgemein', 'memes', 'enten', 'raum-107-chemie', '☕-lehrerzimmer', 'ticket-0001-wlan-kaputt']) assert.ok(namen.includes(n), `fehlt: ${n}`);
+  for (const n of ['allgemein-2', 'kanal', 'nicht-allgemein', 'wer-hat-meine-socke-gesehen']) assert.ok(!namen.includes(n), `noch da: ${n}`);
+  assert.equal(namen.filter((n) => n === 'allgemein').length, 1, '#allgemein doppelt');
+  assert.ok(![...channels.values()].some((c) => c.type !== ChannelType.GuildCategory && !c.parentId), 'Kanal ohne Kategorie');
+  events.length = 0;
+  await serverAbgleich(guild);
+  assert.deepEqual(events, [], 'Zweiter Abgleich darf nichts mehr ändern: ' + events.join(' | '));
+}
+
 // ---------------------------------------------------------------- Ticket-Knöpfe und Formular
 async function simulateTicketButtons() {
   const guildId = 'g-ticket';
@@ -456,6 +537,7 @@ async function checkZeugnisPdf() {
 }
 
 for (const [name, fn] of [
+  ['Abgleich alter Server', simulateAbgleich],
   ['Zeugnis-PDF', checkZeugnisPdf],
   ['Formulare', simulateFormulare],
   ['Sound-Upload', simulateSoundUpload],

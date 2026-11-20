@@ -14,7 +14,7 @@ import { handleMention, handleTicket, handleTicketMessage } from './features/tic
 import { handleModeration, ramEmbed, strafregisterEmbed } from './features/moderation.js';
 import { getSounds, initChaos, raid } from './features/chaos.js';
 import { handleBotCommand, handleServerCommand, initRoulette } from './features/server.js';
-import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand } from './features/setup.js';
+import { handleCoOwnerCommand, handleSetupButton, handleSetupCommand, serverAbgleich } from './features/setup.js';
 import { SPASS_COMMANDS, handleSpassCommand, initEvents, istPause, merkeAktiv, pauseText } from './features/events.js';
 import { initVoiceNames } from './features/voicenames.js';
 import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule, lehrerErwaehnt } from './features/schule.js';
@@ -73,6 +73,17 @@ client.once(Events.ClientReady, async () => {
     });
   }
   for (const guild of client.guilds.cache.values()) await registerCommands(guild);
+  // Abgleich: Server auf den neuesten Stand bringen (läuft im Hintergrund weiter)
+  (async () => {
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        const log = await serverAbgleich(guild);
+        console.log(log.length ? `🔄 Abgleich ${guild.name}:\n   ${log.join('\n   ')}` : `🔄 Abgleich ${guild.name}: alles auf dem neuesten Stand.`);
+      } catch (err) {
+        logError(`abgleich:${guild.name}`, err);
+      }
+    }
+  })();
   rotateStatus();
   setInterval(rotateStatus, 5 * 60 * 1000);
   initChaos(client);
@@ -174,7 +185,7 @@ async function handleCommand(interaction) {
     }
 
     case 'regeln':
-      return interaction.reply({ ...rulesPage(0), components: [], ...ephemeral, content: 'Seite 1. Die anderen Seiten gibt es beim Captcha. Oder in #wer-hat-meine-socke-gesehen.' });
+      return interaction.reply({ ...rulesPage(0), components: [], ...ephemeral, content: 'Seite 1. Alle Seiten stehen in #regeln.' });
 
     case 'einladung': {
       const guild = interaction.guild;

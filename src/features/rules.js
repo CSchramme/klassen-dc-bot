@@ -49,7 +49,7 @@ export function rulesPage(i) {
   return { embeds: [embed], components: [new ActionRowBuilder().addComponents(buttons)] };
 }
 
-/** Alle Regeln am Stück (für #wer-hat-meine-socke-gesehen). */
+/** Alle Regeln am Stück (für #regeln). */
 export function allRulesMessage() {
   const embeds = RULE_PAGES.map((p, i) =>
     new EmbedBuilder()

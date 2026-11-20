@@ -8,10 +8,9 @@ import {
   MessageFlags,
   PermissionFlagsBits as P,
 } from 'discord.js';
-import { BOT_NICKNAME, LAYOUT, LOTTERY_ROLES, ROLES, SERVER_NAME, TEAM_KODEX } from './layout.js';
-import { allRulesMessage, startMessage } from './rules.js';
-import { lotteryMessage } from './lottery.js';
-import { ticketPanelMessage } from './tickets.js';
+import { BOT_NICKNAME, LAYOUT_VERSION, LOTTERY_ROLES, ROLES, SERVER_NAME } from './layout.js';
+import { layoutAbgleich } from './abgleich.js';
+import { schulAbgleich } from './schule.js';
 import { setDumbIcon } from './server.js';
 import { uploadSounds } from './sounds.js';
 import { guildState, save } from '../storage.js';
@@ -71,7 +70,7 @@ async function ensureRole(guild, def, extra = {}) {
  * Legt alle Rollen an (bzw. benutzt vorhandene), sortiert sie
  * (Owner > Co-Owner > Team > Verifiziert) und gibt dem Serverbesitzer die Owner-Rolle.
  */
-async function ensureRoles(guild, log) {
+export async function ensureRoles(guild, log) {
   const g = guildState(guild.id);
   const owner = await ensureRole(guild, ROLES.owner, { hoist: true, permissions: [P.Administrator] });
   const coOwner = await ensureRole(guild, ROLES.coOwner, { hoist: true, permissions: [P.Administrator] });
@@ -218,60 +217,11 @@ async function runSetup(guild, { wipe, name }) {
   // 2) Rollen
   const { verified, team } = await ensureRoles(guild, log);
 
-  // 3) Kategorien und Kanäle
-  const ids = { verified: verified.id, team: team.id };
-  const byKey = {};
-  let count = 0;
-  for (const cat of LAYOUT) {
-    const category = await guild.channels.create({
-      name: cat.name,
-      type: ChannelType.GuildCategory,
-      permissionOverwrites: overwrites(guild, ids, cat.sicht, false),
-      reason: 'Dummes Setup',
-    });
-    if (cat.key) byKey[cat.key] = category;
-
-    for (const ch of cat.channels) {
-      const created = await guild.channels.create({
-        name: ch.name,
-        type: ch.type === 'voice' ? ChannelType.GuildVoice : ChannelType.GuildText,
-        parent: category.id,
-        topic: ch.type === 'text' ? ch.topic : undefined,
-        rateLimitPerUser: ch.slowmode,
-        userLimit: ch.userLimit,
-        permissionOverwrites: overwrites(guild, ids, cat.sicht, ch.nurLesen),
-        reason: 'Dummes Setup',
-      });
-      if (ch.key) byKey[ch.key] = created;
-      count++;
-    }
-  }
-  for (const [key, ch] of Object.entries(byKey)) g.ids[`ch_${key}`] = ch.id;
+  // 3) Kategorien, Kanäle und Inhalte (derselbe Abgleich wie bei jedem Neustart)
+  const { byKey } = await layoutAbgleich(guild, log, overwrites);
+  g.layoutVersion = LAYOUT_VERSION;
   save();
-  log.push(`📁 ${LAYOUT.length} Kategorien und ${count} Kanäle erstellt`);
-
-  // 4) Inhalte posten
-  const send = (key, payload) => byKey[key]?.send({ allowedMentions: { parse: [] }, ...payload });
-  await send('start', startMessage());
-  await send('fakeRules', {
-    content:
-      '📜 **Die Regeln sind nicht hier.**\n' +
-      `Sie sind in ${byKey.realRules}. Oder in ${byKey.start}. Wir wissen es selbst nicht genau.\n` +
-      'Bitte hier nichts schreiben. (Du kannst eh nicht.)',
-  });
-  await send('realRules', allRulesMessage());
-  await send('lottery', lotteryMessage());
-  await send('tickets', ticketPanelMessage());
-  await send('nichtOeffnen', { content: '👀 Wir haben dich gewarnt. Jetzt musst du hier für immer bleiben. (Oder einfach woanders hinklicken.)' });
-  await send('modlog', { content: '🚨 **Polizeiwache eröffnet.** Hier landen alle Verstöße gegen die Serverordnung. Rechtskräftig. (Nicht.)' });
-  const kodexEmbeds = TEAM_KODEX.map((s, i) =>
-    new EmbedBuilder()
-      .setColor(i === 0 ? 0x2c3e50 : 0x7f8c8d)
-      .setTitle(s.title)
-      .setDescription(s.text),
-  );
-  for (let i = 0; i < kodexEmbeds.length; i += 10) await send('kodex', { embeds: kodexEmbeds.slice(i, i + 10) });
-  log.push('📝 Regeln, Captcha, Lotterie, Tickets und Team-Kodex gepostet');
+  log.push(...(await schulAbgleich(guild)));
 
   // 5) Servereinstellungen
   const tryStep = async (label, fn) => {
@@ -289,7 +239,7 @@ async function runSetup(guild, { wipe, name }) {
     await guild.setAFKChannel(byKey.afk);
     await guild.setAFKTimeout(3600);
   });
-  await tryStep('👋 Willkommensnachrichten landen in #nicht-allgemein', () => guild.setSystemChannel(byKey.system));
+  await tryStep('👋 Willkommensnachrichten landen in #allgemein', () => guild.setSystemChannel(byKey.system));
   await tryStep(`🏷️ Bot-Spitzname: ${BOT_NICKNAME}`, () => guild.members.me.setNickname(BOT_NICKNAME));
   try {
     log.push(...(await uploadSounds(guild)));
@@ -323,6 +273,29 @@ function summaryEmbed(log) {
 
 function missingPermissions(guild) {
   return !guild.members.me.permissions.has(P.Administrator);
+}
+
+/**
+ * Wird bei jedem Start für eingerichtete Server aufgerufen: bringt Rollen, Kanäle, Schule,
+ * Sounds und Einstellungen auf den neuesten Stand (ohne Doppelte). Gibt die Protokollzeilen zurück.
+ */
+export async function serverAbgleich(guild) {
+  const g = guildState(guild.id);
+  if (!g.setupDone || !guild.members.me?.permissions.has(P.Administrator)) return [];
+  const log = [];
+  const rollenLog = [];
+  await ensureRoles(guild, rollenLog);
+  log.push(...rollenLog.filter((l) => l.startsWith('⚠️')));
+  const { byKey } = await layoutAbgleich(guild, log, overwrites);
+  log.push(...(await schulAbgleich(guild, { leise: true })));
+  if (byKey.system && guild.systemChannelId !== byKey.system.id) await guild.setSystemChannel(byKey.system).catch(() => {});
+  if (byKey.afk && guild.afkChannelId !== byKey.afk.id) await guild.setAFKChannel(byKey.afk).catch(() => {});
+  try {
+    log.push(...(await uploadSounds(guild)).filter((l) => l.startsWith('🔊')));
+  } catch (err) {
+    logError('abgleich:sounds', err);
+  }
+  return log;
 }
 
 export async function handleSetupCommand(interaction) {
