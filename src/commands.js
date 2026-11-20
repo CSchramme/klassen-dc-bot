@@ -342,4 +342,5 @@ export const COMMANDS = [
       .setDescription('Schere, Stein, Papier. Wer verliert, hat eine Stunde Tafeldienst.')
       .addUserOption((o) => o.setName('gegner').setDescription('Wen forderst du heraus? (Willy geht auch)').setRequired(true)),
   ),
+  guildOnly(new SlashCommandBuilder().setName('klassenfoto').setDescription('Willy macht ein Klassenfoto (mit allen Aktiven, Lehrkräften, Heinz und einer Ente)')),
 ].map((c) => c.toJSON());

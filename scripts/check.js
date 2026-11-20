@@ -805,7 +805,22 @@ async function simulateSpiele() {
   assert.deepEqual(vergeben.at(-1), ['-u2', 'tafel'], 'Tafeldienst nicht beendet');
 }
 
+// ---------------------------------------------------------------- Klassenfoto
+async function checkKlassenfoto() {
+  const { klassenfotoBild, fotoName } = await import('../src/features/klassenfoto.js');
+  assert.equal(fotoName('Anna 🦆'), 'Anna');
+  assert.equal(fotoName('🥔🥔'), '???');
+  for (const n of [1, 7, 30, 45]) {
+    const personen = Array.from({ length: n }, (_, i) => ({ name: `Person ${i} 🎉`, avatar: i % 4 === 0 ? 'assets/willy-avatar.png' : null }));
+    const png = await klassenfotoBild({ servername: '⏳ Server lädt… 99 %', personen, datum: '2026-11-20', seed: String(n) });
+    assert.ok(png, 'Kein Bild (fehlt @napi-rs/canvas?)');
+    assert.equal(png.subarray(1, 4).toString(), 'PNG');
+    assert.ok(png.length < 8 * 1024 * 1024, `Bild zu groß: ${png.length}`);
+  }
+}
+
 for (const [name, fn] of [
+  ['Klassenfoto', checkKlassenfoto],
   ['Pausenspiele', simulateSpiele],
   ['Hausmeisterei', simulateWerkstatt],
   ['Schulwoche', simulateWoche],

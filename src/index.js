@@ -20,6 +20,7 @@ import { initVoiceNames } from './features/voicenames.js';
 import { WOCHEN_COMMANDS, handleWochenCommand } from './features/woche.js';
 import { WERKSTATT_COMMANDS, handleWerkstattCommand, initWerkstatt } from './features/werkstatt.js';
 import { SPIELE_COMMANDS, handleDuell, handleSpieleCommand, initSpiele } from './features/spiele.js';
+import { handleKlassenfoto } from './features/klassenfoto.js';
 import { SCHUL_COMMANDS, handleSchule, handleSchulCommand, handleSchulNachricht, initSchule, lehrerErwaehnt } from './features/schule.js';
 import { startLehrerBots } from './lehrer-bots.js';
 import { handleSoundsCommand } from './features/sounds.js';
@@ -121,6 +122,7 @@ async function handleCommand(interaction) {
   if (WOCHEN_COMMANDS.includes(interaction.commandName)) return handleWochenCommand(interaction);
   if (WERKSTATT_COMMANDS.includes(interaction.commandName)) return handleWerkstattCommand(interaction);
   if (SPIELE_COMMANDS.includes(interaction.commandName)) return handleSpieleCommand(interaction);
+  if (interaction.commandName === 'klassenfoto') return handleKlassenfoto(interaction);
   const g = guildState(interaction.guildId);
 
   switch (interaction.commandName) {
