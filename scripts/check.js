@@ -681,9 +681,25 @@ async function simulateWoche() {
   embedOk(k);
   assert.match(k.title, /Gänse/, 'Schlagzeile sollte die Gänse sein');
   assert.ok(k.fields.some((f) => f.name.includes('Besten') && f.value.includes('Tim')));
+  // Zeitungsseite als Bild + PDF (auch mit sehr viel Inhalt)
+  const { kurierNachricht } = await import('../src/features/woche.js');
+  const { kurierDruck } = await import('../src/features/kurier-druck.js');
+  const voll = await kurierDruck({ ausgabe: 99, datum: '2026-11-20', vorab: true, titel: 'Sehr lange Schlagzeile '.repeat(10), unterzeile: 'Unterzeile '.repeat(20),
+    kommentar: 'Kommentar mit vielen Wörtern und 🦆 Emojis. '.repeat(30), zahlen: Array.from({ length: 20 }, (_, i) => ({ zahl: i * 1000, label: 'Sehr lange Beschriftung einer Zahl der Woche' })),
+    beste: [{ name: 'Ein unfassbar langer Anzeigename mit 🥔', punkte: 99 }, { name: 'B', punkte: 2 }, { name: '🦆', punkte: 1 }], spitznamen: ['🥔 Kartoffel', 'X'.repeat(80)],
+    wetter: '☀️ Sonnig', horoskop: 'Horoskop '.repeat(30), anzeigen: ['A '.repeat(80), 'B', 'C', 'D', 'E'], seitText: '13.11.2026', fotoFach: 'chemie', kurz: ['Kurz '.repeat(40), 'zwei', 'drei'] });
+  assert.equal(voll.png.subarray(1, 4).toString(), 'PNG');
+  assert.equal(voll.pdf.subarray(0, 5).toString(), '%PDF-');
+  assert.equal((voll.pdf.toString('latin1').match(/\/Type\s*\/Page\b/g) ?? []).length, 1, 'Kurier-PDF muss genau 1 Seite haben');
+  const nachricht = await kurierNachricht(guild, { vorab: true });
+  assert.deepEqual(nachricht.files.map((f) => f.name.split('.').pop()), ['png', 'pdf']);
+  assert.equal(nachricht.embeds[0].toJSON().image.url, `attachment://${nachricht.files[0].name}`);
+  embedOk(nachricht.embeds[0].toJSON());
+
   sent.length = 0;
   assert.equal(await kurierDrucken(guild), null);
   assert.equal(sent[0].ch, 'ankündigungen');
+  assert.equal(sent[0].files?.length, 2, 'Kurier ohne Bild/PDF gedruckt');
   assert.equal(chronik(gid).ausgabe, 1);
   assert.deepEqual(chronik(gid).zahlen, {});
   embedOk((await kurierEmbed(guild)).toJSON()); // leere Woche

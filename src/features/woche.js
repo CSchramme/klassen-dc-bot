@@ -1,7 +1,7 @@
 // Die Schulwoche: Lehrerkonferenz (freitags + /lehrerkonferenz), Elternsprechtag (/elternsprechtag)
 // und die Schülerzeitung "Willy-Kurier" (freitags + /zeitung). Grundlage ist die Wochenchronik.
 // Personen werden nur für Positives genannt (Quiz-Siege usw.), nie für Strafen oder schlechte Noten.
-import { EmbedBuilder, MessageFlags, PermissionFlagsBits as P, escapeMarkdown } from 'discord.js';
+import { AttachmentBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits as P, escapeMarkdown } from 'discord.js';
 import { config } from '../config.js';
 import { askAI } from '../ai.js';
 import { chronik, chronikNeu } from '../chronik.js';
@@ -11,6 +11,7 @@ import { FACH_KEYS, FAECHER } from './schule-daten.js';
 import { echteNoten, lehrerImLehrerzimmer, lehrerzimmerKanal, schuleEingerichtet } from './schule.js';
 import { findChannel } from './roles.js';
 import { RAM_DIEBSTAHL } from '../insider.js';
+import { kurierDruck } from './kurier-druck.js';
 
 const NO_PINGS = { parse: [] };
 const ephemeral = { flags: MessageFlags.Ephemeral };
@@ -388,6 +389,26 @@ const ANZEIGEN = [
   'Tausche: RAM gegen RAM. Kein Altman.',
 ];
 
+function kurzMeldungen(c, rng) {
+  const z = c.zahlen;
+  const dynamisch = [
+    (c.listen.fundsachen ?? []).length && `Im Fundbüro liegen ${c.listen.fundsachen.length} neue Sachen. Willy hat noch keine davon benutzt. Sagt er.`,
+    z.tafel && `An die Tafel wurde ${z.tafel}× geschrieben. Willy hat ${z.tafel}× gewischt. Die Kreide ist alle.`,
+    z.duelle && `Bei ${z.duelle} Duellen wurde der Tafeldienst neu vergeben. Die Tafel war noch nie so sauber.`,
+    z.kaffeepausen && `Willy hat ${z.kaffeepausen}× Kaffeepause gemacht. Die Kaffeemaschine hat ihn trotzdem nicht erkannt.`,
+  ].filter(Boolean);
+  const fest = [
+    'Die Kaffeemaschine im Lehrerzimmer ist weiterhin kaputt. Die Lehrkräfte trinken jetzt Leitungswasser mit Kakaopulver.',
+    'Der Ladebalken steht weiterhin bei 99 %. Fachleute rechnen mit 100 % im Jahr 2087.',
+    'Heinz der Kaktus wurde gegossen. Er hat sich nicht bedankt.',
+    'Der Vordereingang bleibt wegen Bauarbeiten geschlossen (seit 2009).',
+    'Eine Ente wurde auf dem Pausenhof gesichtet. Sie hat sich ordnungsgemäß angemeldet.',
+    `${RAM_DIEBSTAHL.dieb} hat auch diese Woche keinen RAM zurückgegeben.`,
+    'Das Sekretariat sucht weiterhin den Besitzer eines silbernen Fahrrads. Das Fahrrad vermisst dich.',
+  ];
+  return [...shuffleWith(rng, dynamisch).slice(0, 2), ...shuffleWith(rng, fest)].slice(0, 4);
+}
+
 async function kommentarMitKI(c) {
   const zahlen = zahlenListe(c).map((z) => z.replace(/\*\*/g, '')).join(', ') || 'kaum etwas';
   const text = await askAI(
@@ -398,46 +419,97 @@ async function kommentarMitKI(c) {
   return text ? truncate(text.trim(), 600) : null;
 }
 
-/** Baut die aktuelle Ausgabe (aus der laufenden Woche). */
-export async function kurierEmbed(guild, { vorab = false } = {}) {
+/** Sammelt alles für die aktuelle Ausgabe (aus der laufenden Woche). */
+export async function kurierDaten(guild, { vorab = false } = {}) {
   const c = chronik(guild.id);
   const rng = seededRng(`${guild.id}:kurier:${c.ausgabe}`);
   const [titel, unterzeile] = schlagzeile(c);
-  const zahlen = zahlenListe(c);
+  const zahlen = Object.entries(ZAHLEN)
+    .filter(([k]) => (c.zahlen[k] ?? 0) > 0)
+    .map(([k, z]) => ({ key: k, zahl: c.zahlen[k], label: z.label, emoji: z.emoji }));
   const beste = await bestenliste(guild, c);
-  const spitznamen = c.listen.spitznamen ?? [];
-  const fund = c.listen.fundsachen ?? [];
+  const fund = (c.listen.fundsachen ?? []).slice(-3);
   const kommentar = (await kommentarMitKI(c).catch(() => null)) ?? pick([
     'Diese Woche war eine Woche. Das kann man so sagen. Die Redaktion sagt es so.',
     'Wir haben recherchiert. Es war anstrengend. Jetzt machen wir Kaffeepause.',
     'Die Redaktion dankt allen, die diese Zeitung lesen. Also dir. Danke.',
   ]);
+  const seit = localNow(config.spass.zeitzone, new Date(c.seit)).date;
+  return {
+    ausgabe: c.ausgabe + 1,
+    datum: localNow(config.spass.zeitzone).date,
+    vorab,
+    titel,
+    unterzeile,
+    kommentar,
+    zahlen,
+    beste,
+    spitznamen: (c.listen.spitznamen ?? []).slice(-5),
+    fund,
+    wetter: shuffleWith(rng, WETTER)[0],
+    horoskop: shuffleWith(rng, HOROSKOP)[0],
+    anzeigen: [...fund.map((f) => `Gefunden: ${f}. Abholen bei Willy.`), ...shuffleWith(rng, ANZEIGEN)].slice(0, 4),
+    seit: c.seit,
+    seitText: seit.split('-').reverse().join('.'),
+    fotoFach: rng() < 0.5 ? null : FACH_KEYS[Math.floor(rng() * FACH_KEYS.length)],
+    kurz: kurzMeldungen(c, rng),
+  };
+}
 
+/** Die Ausgabe als Discord-Embed (falls es kein Bild/PDF gibt). */
+function embedAusDaten(d) {
   const embed = new EmbedBuilder()
     .setColor(0x2c3e50)
-    .setAuthor({ name: `📰 Willy-Kurier · Ausgabe ${c.ausgabe + 1}${vorab ? ' (Vorabdruck)' : ''}` })
-    .setTitle(truncate(`📢 ${titel}`, 256))
-    .setDescription(`_${unterzeile}_\n\nBerichtszeitraum: seit ${seitText(c)}`)
-    .addFields({ name: '📊 Zahlen der Woche', value: truncate(zahlen.join('\n') || 'Keine. Alle haben geschlafen.', 1024) });
-  if (beste.length) {
-    embed.addFields({ name: '🏆 Die Besten der Woche', value: beste.map((b, i) => `${['🥇', '🥈', '🥉'][i]} ${escapeMarkdown(b.name)} – ${b.punkte} Punkte`).join('\n') });
+    .setAuthor({ name: `📰 Willy-Kurier · Ausgabe ${d.ausgabe}${d.vorab ? ' (Vorabdruck)' : ''}` })
+    .setTitle(truncate(`📢 ${d.titel}`, 256))
+    .setDescription(`_${d.unterzeile}_\n\nBerichtszeitraum: seit <t:${Math.floor(d.seit / 1000)}:d>`)
+    .addFields({ name: '📊 Zahlen der Woche', value: truncate(d.zahlen.map((z) => `${z.emoji} **${z.zahl}** ${z.label}`).join('\n') || 'Keine. Alle haben geschlafen.', 1024) });
+  if (d.beste.length) {
+    embed.addFields({ name: '🏆 Die Besten der Woche', value: d.beste.map((b, i) => `${['🥇', '🥈', '🥉'][i]} ${escapeMarkdown(b.name)} – ${b.punkte} Punkte`).join('\n') });
   }
-  if (spitznamen.length) embed.addFields({ name: '🏷️ Spitznamen der Woche', value: truncate(spitznamen.slice(-5).map((n) => `„${escapeMarkdown(n)}“`).join(', '), 1024) });
+  if (d.spitznamen.length) embed.addFields({ name: '🏷️ Spitznamen der Woche', value: truncate(d.spitznamen.map((n) => `„${escapeMarkdown(n)}“`).join(', '), 1024) });
   embed.addFields(
-    { name: '✍️ Kommentar der Chefredaktion', value: kommentar },
-    { name: '🌦️ Wetter', value: shuffleWith(rng, WETTER)[0], inline: true },
-    { name: '🔮 Horoskop', value: shuffleWith(rng, HOROSKOP)[0], inline: true },
-    { name: '📌 Kleinanzeigen', value: truncate(fund.length ? fund.slice(-3).map((f) => `Gefunden: ${escapeMarkdown(f)}. Abholen bei Willy.`).join('\n') : shuffleWith(rng, ANZEIGEN)[0], 1024) },
+    { name: '✍️ Kommentar der Chefredaktion', value: truncate(d.kommentar, 1024) },
+    { name: '🌦️ Wetter', value: d.wetter, inline: true },
+    { name: '🔮 Horoskop', value: d.horoskop, inline: true },
+    { name: '📌 Kleinanzeigen', value: truncate(d.anzeigen.slice(0, 3).map((a) => escapeMarkdown(a)).join('\n'), 1024) },
   );
   return embed.setFooter({ text: 'Auflage: 3 Stück · Preis: 1 Socke · Druckerei: Willys Kopierer (kaputt)' }).setTimestamp();
+}
+
+export async function kurierEmbed(guild, opts = {}) {
+  return embedAusDaten(await kurierDaten(guild, opts));
+}
+
+/**
+ * Die Ausgabe als Nachricht: Zeitungsseite als Bild (wird in Discord angezeigt) + dieselbe Seite als PDF zum Herunterladen.
+ * Ohne @napi-rs/canvas gibt es nur das Embed.
+ */
+export async function kurierNachricht(guild, opts = {}) {
+  const d = await kurierDaten(guild, opts);
+  const druck = await kurierDruck(d).catch((err) => (logError('kurier:druck', err), null));
+  if (!druck) return { embeds: [embedAusDaten(d)], allowedMentions: NO_PINGS };
+  const name = `willy-kurier-nr-${d.ausgabe}${d.vorab ? '-vorabdruck' : ''}`;
+  const embed = new EmbedBuilder()
+    .setColor(0x2c3e50)
+    .setAuthor({ name: `📰 Willy-Kurier · Ausgabe ${d.ausgabe}${d.vorab ? ' (Vorabdruck)' : ''}` })
+    .setTitle(truncate(`📢 ${d.titel}`, 256))
+    .setDescription(`_${d.unterzeile}_\n\n🔍 Aufs Bild klicken zum Lesen · 📎 Zum Ausdrucken hängt die Ausgabe unten als **PDF** dran.`)
+    .setImage(`attachment://${name}.png`)
+    .setFooter({ text: 'Auflage: 3 Stück · Preis: 1 Socke · Druckerei: Willys Kopierer (kaputt)' });
+  return {
+    embeds: [embed],
+    files: [new AttachmentBuilder(druck.png, { name: `${name}.png` }), new AttachmentBuilder(druck.pdf, { name: `${name}.pdf` })],
+    allowedMentions: NO_PINGS,
+  };
 }
 
 /** Druckt die Ausgabe in #ankündigungen und startet eine neue Woche. */
 export async function kurierDrucken(guild) {
   const kanal = findChannel(guild, 'announce') ?? guild.systemChannel;
   if (!kanal?.isTextBased()) return 'Ich finde #ankündigungen nicht.';
-  const embed = await kurierEmbed(guild);
-  await kanal.send({ content: '🗞️ **Extrablatt! Extrablatt!** Der neue Willy-Kurier ist da.', embeds: [embed], allowedMentions: NO_PINGS });
+  const nachricht = await kurierNachricht(guild);
+  await kanal.send({ content: '🗞️ **Extrablatt! Extrablatt!** Der neue Willy-Kurier ist da.', ...nachricht });
   const c = chronik(guild.id);
   c.ausgabe += 1;
   save();
@@ -506,7 +578,7 @@ export async function handleWochenCommand(interaction) {
         return interaction.editReply(fehler ?? '🗞️ Gedruckt und in #ankündigungen verteilt. Die neue Woche beginnt.');
       }
       await interaction.deferReply();
-      return interaction.editReply({ embeds: [await kurierEmbed(guild, { vorab: true })], allowedMentions: NO_PINGS });
+      return interaction.editReply(await kurierNachricht(guild, { vorab: true }));
     }
     default:
       return null;

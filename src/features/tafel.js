@@ -7,7 +7,7 @@ import { guildState, save } from '../storage.js';
 import { chance, localNow, logError, pick, seededRng, truncate } from '../util.js';
 import { zaehle } from '../chronik.js';
 import { SERIOUS_CHAT_REPLY, SERIOUS_WORDS } from '../ernst.js';
-import { canvasLaden } from './leinwand.js';
+import { canvasLaden, umbrechen } from './leinwand.js';
 import { findChannel } from './roles.js';
 
 const NO_PINGS = { parse: [] };
@@ -59,32 +59,6 @@ const sauber = (text) =>
       .trim(),
     200,
   );
-
-/** Zeilen umbrechen, sodass alles in die Breite passt. Sehr lange Wörter werden zerteilt. */
-function umbrechen(ctx, text, breite) {
-  const zeilen = [];
-  for (const absatz of text.split('\n')) {
-    let zeile = '';
-    for (let wort of absatz.split(' ')) {
-      while (ctx.measureText(wort).width > breite) {
-        let n = wort.length - 1;
-        while (n > 1 && ctx.measureText(wort.slice(0, n)).width > breite) n--;
-        if (zeile) zeilen.push(zeile);
-        zeilen.push(wort.slice(0, n));
-        zeile = '';
-        wort = wort.slice(n);
-      }
-      const probe = zeile ? `${zeile} ${wort}` : wort;
-      if (ctx.measureText(probe).width <= breite) zeile = probe;
-      else {
-        zeilen.push(zeile);
-        zeile = wort;
-      }
-    }
-    zeilen.push(zeile);
-  }
-  return zeilen;
-}
 
 /** Text mit Kreide-Effekt (mehrmals leicht versetzt, etwas durchscheinend). */
 function kreideText(ctx, text, x, y, farbe, rng, deckkraft = 1) {
