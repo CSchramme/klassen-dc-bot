@@ -30,6 +30,7 @@ const { FAECHER } = await import('../src/features/schule-daten.js');
 const { FORMS, handleFormular, handleFormularCommand } = await import('../src/features/formulare.js');
 const fsMod = await import('node:fs');
 const { localNow, parseTime } = await import('../src/util.js');
+const { fuerDiscord } = await import('../src/discord-text.js');
 
 let ok = 0;
 const check = (name, fn) => {
@@ -159,6 +160,22 @@ check('Schul-Noten & Fragen', () => {
       assert.ok([q.a, ...q.wrong].every((o) => o.length <= 80), `${key}: Antwort zu lang`);
     }
   }
+});
+
+// ---------------------------------------------------------------- KI-Text für Discord (kein LaTeX)
+check('LaTeX → Discord-Text', () => {
+  const faelle = [
+    ['$1 + 1$ ist $\\frac{2}{1}$, also $2$', '1 + 1 ist 2/1, also 2'],
+    ['$x^2 + y^{2} = r^2$', 'x² + y² = r²'],
+    ['$3 \\cdot 4 = 12$ und $10 \\div 2$', '3 · 4 = 12 und 10 ÷ 2'],
+    ['$\\sqrt{9} = 3$', '√9 = 3'],
+    ['$$\\frac{a+b}{2}$$', '(a+b)/2'],
+    ['Der Winkel hat $90^\\circ$', 'Der Winkel hat 90°'],
+    ['Das kostet 5$ und 10$.', 'Das kostet 5$ und 10$.'],
+    ['$\\pi \\approx 3{,}14$', 'π ≈ 3,14'],
+    ['$H_2O$', 'H₂O'],
+  ];
+  for (const [rein, raus] of faelle) assert.equal(fuerDiscord(rein), raus, `"${rein}"`);
 });
 
 // ---------------------------------------------------------------- Rechte

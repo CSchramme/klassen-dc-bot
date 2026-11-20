@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ApiError, GoogleGenAI } from '@google/genai';
 import { config } from './config.js';
 import { logError, truncate } from './util.js';
+import { FORMAT_HINWEIS, fuerDiscord } from './discord-text.js';
 
 let disabled = false; // nach ungültigem Key: bis zum Neustart nur noch Sprüche
 
@@ -35,9 +36,12 @@ function disable(reason) {
 export async function askAI(system, history) {
   if (disabled) return null;
   const provider = aiProvider();
-  if (provider === 'claude') return askClaude(system, history);
-  if (provider === 'gemini') return askGemini(system, history);
-  return null;
+  const anweisung = `${system}\n\n${FORMAT_HINWEIS}`;
+  let text = null;
+  if (provider === 'claude') text = await askClaude(anweisung, history);
+  else if (provider === 'gemini') text = await askGemini(anweisung, history);
+  // Falls die KI doch LaTeX schreibt: in normalen Text umwandeln (Discord kann das nicht anzeigen)
+  return text ? fuerDiscord(text) : null;
 }
 
 // ---------------------------------------------------------------------------
